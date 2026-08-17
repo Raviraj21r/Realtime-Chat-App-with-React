@@ -69,7 +69,7 @@ function ChatContainer() {
                     {msg.senderId === authUser._id && !msg.isOptimistic && (
                       <button
                         onClick={() => deleteMessage(msg._id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-red-200 hover:text-red-400 p-0.5"
+                       className="text-red-200 hover:text-red-400 p-1 ml-2 transition-colors"
                         title="Delete message"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
