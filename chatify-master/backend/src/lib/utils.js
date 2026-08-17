@@ -14,8 +14,8 @@ export const generateToken = (userId, res) => {
   res.cookie("jwt", token, {
     maxAge: 7 * 24 * 60 * 60 * 1000, // MS
     httpOnly: true, // prevent XSS attacks: cross-site scripting
-    sameSite: "strict", // CSRF attacks
-    secure: ENV.NODE_ENV === "development" ? false : true,
+   sameSite: "none", // ⚠️ 'strict' को हटाकर 'none' करें
+   secure: true,     // ⚠️ Vercel और Render दोनों HTTPS पर हैं इसलिए true रहेगा
   });
 
   return token;
