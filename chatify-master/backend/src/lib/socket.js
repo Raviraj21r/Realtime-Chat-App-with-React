@@ -9,7 +9,11 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: [ENV.CLIENT_URL],
+    origin: [
+      "http://localhost:5173",
+      "https://realtime-chat-app-with-react-delta.vercel.app",
+      ENV.CLIENT_URL
+    ].filter(Boolean), // Filter out undefined/null values
     credentials: true,
   },
 });

@@ -113,6 +113,11 @@ export const useChatStore = create((set, get) => ({
       return;
     }
 
+    // Remove existing listeners to prevent duplicates
+    socket.off("newMessage");
+    socket.off("messageDeleted");
+    socket.off("messagesRead");
+
     console.log("Subscribing to messages for user:", selectedUser._id);
 
     socket.on("newMessage", (newMessage) => {

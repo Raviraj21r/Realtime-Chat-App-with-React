@@ -1,9 +1,7 @@
 import { create } from "zustand";
-import { axiosInstance } from "../lib/axios";
+import { axiosInstance, BASE_URL } from "../lib/axios";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
-
-const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:3000" : "/";
 
 export const useAuthStore = create((set, get) => ({
   authUser: null,
@@ -89,6 +87,7 @@ export const useAuthStore = create((set, get) => ({
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      transports: ["websocket", "polling"], // Ensure both transports are available
     });
 
     socket.connect();
@@ -103,7 +102,7 @@ export const useAuthStore = create((set, get) => ({
 
     // Handle connection events
     socket.on("connect", () => {
-      console.log("Socket connected successfully");
+      console.log("Socket connected successfully to:", BASE_URL);
     });
 
     socket.on("disconnect", () => {

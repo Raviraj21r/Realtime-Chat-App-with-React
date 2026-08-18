@@ -26,7 +26,7 @@ function ChatContainer() {
 
     // clean up
     return () => unsubscribeFromMessages();
-  }, [selectedUser, getMessagesByUserId, subscribeToMessages, unsubscribeFromMessages]);
+  }, [selectedUser._id]); // Only re-run when selectedUser changes
 
   useEffect(() => {
     if (messageEndRef.current) {
