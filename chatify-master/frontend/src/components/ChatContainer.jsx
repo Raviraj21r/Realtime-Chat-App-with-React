@@ -55,6 +55,9 @@ function ChatContainer() {
                   {msg.image && (
                     <img src={msg.image} alt="Shared" className="rounded-lg h-48 w-full object-cover" />
                   )}
+                  {msg.video && (
+                    <video src={msg.video} controls className="rounded-lg h-48 w-full object-cover bg-slate-950" />
+                  )}
                   {msg.text && <p className="mt-2 break-words">{msg.text}</p>}
                   
                   <div className="flex items-center justify-between gap-2 mt-1">

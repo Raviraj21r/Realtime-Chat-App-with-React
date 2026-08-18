@@ -2,14 +2,15 @@ import { useRef, useState } from "react";
 import useKeyboardSound from "../hooks/useKeyboardSound";
 import { useChatStore } from "../store/useChatStore";
 import toast from "react-hot-toast";
-import { ImageIcon, SendIcon, XIcon } from "lucide-react";
+import { ImageIcon, SendIcon, VideoIcon, XIcon } from "lucide-react";
 
 function MessageInput() {
   const { playRandomKeyStrokeSound } = useKeyboardSound();
   const [text, setText] = useState("");
-  const [imagePreview, setImagePreview] = useState(null);
-  const [showImageModal, setShowImageModal] = useState(false);
-  const [imageCaption, setImageCaption] = useState("");
+  const [mediaPreview, setMediaPreview] = useState(null);
+  const [mediaType, setMediaType] = useState("image");
+  const [showMediaModal, setShowMediaModal] = useState(false);
+  const [mediaCaption, setMediaCaption] = useState("");
 
   const fileInputRef = useRef(null);
 
@@ -17,55 +18,59 @@ function MessageInput() {
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    if (!text.trim() && !imagePreview) return;
+    if (!text.trim() && !mediaPreview) return;
     if (isSoundEnabled) playRandomKeyStrokeSound();
 
     sendMessage({
       text: text.trim(),
-      image: imagePreview,
+      image: mediaType === "image" ? mediaPreview : null,
+      video: mediaType === "video" ? mediaPreview : null,
     });
-    setText("");
-    setImagePreview(null);
-    setImageCaption("");
-    setShowImageModal(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+
+    resetMedia();
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type.startsWith("video/");
+
+    if (!isImage && !isVideo) {
+      toast.error("Please select an image or video file");
       return;
     }
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      setImagePreview(reader.result);
-      setShowImageModal(true);
+      setMediaPreview(reader.result);
+      setMediaType(isVideo ? "video" : "image");
+      setShowMediaModal(true);
     };
     reader.readAsDataURL(file);
   };
 
-  const removeImage = () => {
-    setImagePreview(null);
-    setImageCaption("");
-    setShowImageModal(false);
+  const resetMedia = () => {
+    setText("");
+    setMediaPreview(null);
+    setMediaType("image");
+    setMediaCaption("");
+    setShowMediaModal(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSendFromModal = () => {
-    if (!imagePreview) return;
+    if (!mediaPreview) return;
     if (isSoundEnabled) playRandomKeyStrokeSound();
 
     sendMessage({
-      text: imageCaption.trim(),
-      image: imagePreview,
+      text: mediaCaption.trim(),
+      image: mediaType === "image" ? mediaPreview : null,
+      video: mediaType === "video" ? mediaPreview : null,
     });
-    setText("");
-    setImagePreview(null);
-    setImageCaption("");
-    setShowImageModal(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+
+    resetMedia();
   };
 
   return (
@@ -76,15 +81,16 @@ function MessageInput() {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="flex-shrink-0 bg-slate-700/50 text-slate-400 hover:text-slate-200 rounded-lg p-3 transition-colors"
+            title="Send image or video"
           >
             <ImageIcon className="w-5 h-5" />
           </button>
 
           <input
             type="file"
-            accept="image/*"
+            accept="image/*,video/*"
             ref={fileInputRef}
-            onChange={handleImageChange}
+            onChange={handleFileChange}
             className="hidden"
           />
 
@@ -101,7 +107,7 @@ function MessageInput() {
 
           <button
             type="submit"
-            disabled={!text.trim()}
+            disabled={!text.trim() && !mediaPreview}
             className="flex-shrink-0 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-lg p-3 font-medium hover:from-cyan-600 hover:to-cyan-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <SendIcon className="w-5 h-5" />
@@ -109,25 +115,35 @@ function MessageInput() {
         </form>
       </div>
 
-      {/* Image Preview Modal */}
-      {showImageModal && (
+      {showMediaModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-800 rounded-xl p-6 w-full max-w-lg">
-            <h3 className="text-xl font-semibold text-slate-200 mb-4">Preview Image</h3>
-            
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-slate-200">
+                {mediaType === "video" ? "Preview Video" : "Preview Image"}
+              </h3>
+              <button
+                type="button"
+                onClick={resetMedia}
+                className="text-slate-400 hover:text-slate-200"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+
             <div className="mb-4">
-              <img
-                src={imagePreview}
-                alt="Preview"
-                className="w-full h-64 object-cover rounded-lg"
-              />
+              {mediaType === "video" ? (
+                <video src={mediaPreview} controls className="w-full h-64 rounded-lg object-cover bg-slate-950" />
+              ) : (
+                <img src={mediaPreview} alt="Preview" className="w-full h-64 object-cover rounded-lg" />
+              )}
             </div>
 
             <div className="mb-4">
               <label className="block text-sm text-slate-400 mb-2">Add a caption (optional)</label>
               <textarea
-                value={imageCaption}
-                onChange={(e) => setImageCaption(e.target.value)}
+                value={mediaCaption}
+                onChange={(e) => setMediaCaption(e.target.value)}
                 placeholder="Type a caption..."
                 className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"
                 rows={3}
@@ -136,7 +152,7 @@ function MessageInput() {
 
             <div className="flex gap-3">
               <button
-                onClick={removeImage}
+                onClick={resetMedia}
                 className="flex-1 px-4 py-3 bg-slate-700 text-slate-200 rounded-lg hover:bg-slate-600 transition-colors"
               >
                 Cancel

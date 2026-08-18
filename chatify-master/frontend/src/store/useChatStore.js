@@ -74,10 +74,10 @@ export const useChatStore = create((set, get) => ({
   },
 
   sendMessage: async (messageData) => {
-    const { selectedUser, messages } = get();
+    const { selectedUser } = get();
     const { authUser } = useAuthStore.getState();
 
-    const tempId = `temp-${Date.now()}`;
+    const tempId = `temp-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
     const optimisticMessage = {
       _id: tempId,
@@ -85,26 +85,82 @@ export const useChatStore = create((set, get) => ({
       receiverId: selectedUser._id,
       text: messageData.text,
       image: messageData.image,
+      video: messageData.video,
       createdAt: new Date().toISOString(),
       isOptimistic: true,
-      isDelivered: false, // Single gray tick initially
+      isDelivered: false,
       isRead: false,
     };
-    
-    // Immediately update the UI by adding the message
-    set({ messages: [...messages, optimisticMessage] });
+
+    set((state) => ({ messages: [...state.messages, optimisticMessage] }));
 
     try {
       const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
-      
-      // Replace optimistic message with real message (backend already marks as delivered)
-      const updatedMessages = messages.map(msg => 
-        msg._id === tempId ? { ...res.data, isDelivered: true, isRead: false } : msg
-      );
-      set({ messages: updatedMessages });
+      const realMessage = {
+        ...res.data,
+        _id: String(res.data._id ?? ""),
+        senderId: String(res.data.senderId ?? ""),
+        receiverId: String(res.data.receiverId ?? ""),
+      };
+
+      set((state) => {
+        const currentMessages = state.messages;
+        const optimisticMatch = currentMessages.find(
+          (msg) =>
+            msg._id === tempId ||
+            (
+              msg.isOptimistic &&
+              String(msg.senderId ?? "") === String(authUser._id ?? "") &&
+              String(msg.receiverId ?? "") === String(selectedUser._id ?? "") &&
+              (msg.text ?? "") === (messageData.text ?? "") &&
+              (msg.image ?? "") === (messageData.image ?? "") &&
+              (msg.video ?? "") === (messageData.video ?? "")
+            )
+        );
+
+        const nextMessages = currentMessages.map((msg) => {
+          const sameTemp = msg._id === tempId;
+          const sameRealId = String(msg._id ?? "") === String(realMessage._id ?? "");
+          const sameContent =
+            String(msg.senderId ?? "") === String(realMessage.senderId ?? "") &&
+            String(msg.receiverId ?? "") === String(realMessage.receiverId ?? "") &&
+            (msg.text ?? "") === (realMessage.text ?? "") &&
+            (msg.image ?? "") === (realMessage.image ?? "") &&
+            (msg.video ?? "") === (realMessage.video ?? "");
+
+          if (sameTemp || sameRealId || sameContent) {
+            return {
+              ...realMessage,
+              ...msg,
+              _id: realMessage._id || msg._id,
+              isDelivered: true,
+              isRead: false,
+              isOptimistic: false,
+            };
+          }
+
+          return msg;
+        });
+
+        const hasRealMessage = nextMessages.some((msg) => String(msg._id ?? "") === String(realMessage._id ?? ""));
+
+        if (!hasRealMessage && realMessage._id) {
+          return {
+            messages: [
+              ...nextMessages,
+              { ...realMessage, isDelivered: true, isRead: false, isOptimistic: false },
+            ],
+          };
+        }
+
+        if (!optimisticMatch && !hasRealMessage && !realMessage._id) {
+          return { messages: [...nextMessages, { ...realMessage, isDelivered: true, isRead: false, isOptimistic: false }] };
+        }
+
+        return { messages: nextMessages };
+      });
     } catch (error) {
-      // Remove optimistic message on failure
-      set({ messages: messages.filter(msg => msg._id !== tempId) });
+      set((state) => ({ messages: state.messages.filter((msg) => msg._id !== tempId) }));
       toast.error(error.response?.data?.message || "Something went wrong");
     }
   },
@@ -132,23 +188,25 @@ export const useChatStore = create((set, get) => ({
     socket.on("newMessage", (newMessage) => {
       console.log("New message received:", newMessage);
 
-      // Ensure consistent string comparison
-      const selectedUserIdStr = selectedUser._id.toString();
-      const authUserIdStr = authUser._id.toString();
-      const senderIdStr = newMessage.senderId?.toString();
-      const receiverIdStr = newMessage.receiverId?.toString();
+      const normalizedMessage = {
+        ...newMessage,
+        _id: String(newMessage._id ?? ""),
+        senderId: String(newMessage.senderId ?? ""),
+        receiverId: String(newMessage.receiverId ?? ""),
+      };
 
-      // Only add message if it's part of the current conversation
-      // (either sent by selected user to current user, or sent by current user to selected user)
+      const selectedUserIdStr = String(selectedUser._id ?? "");
+      const authUserIdStr = String(authUser._id ?? "");
+      const senderIdStr = String(normalizedMessage.senderId ?? "");
+      const receiverIdStr = String(normalizedMessage.receiverId ?? "");
+
       const isFromSelectedUser = senderIdStr === selectedUserIdStr;
       const isToSelectedUser = receiverIdStr === selectedUserIdStr;
       const isFromCurrentUser = senderIdStr === authUserIdStr;
       const isToCurrentUser = receiverIdStr === authUserIdStr;
 
-      // Show message if it's from selected user to current user (incoming)
-      // OR if it's from current user to selected user (outgoing, but received via socket)
-      const isRelevantMessage = (isFromSelectedUser && isToCurrentUser) || 
-                                (isFromCurrentUser && isToSelectedUser);
+      const isRelevantMessage =
+        (isFromSelectedUser && isToCurrentUser) || (isFromCurrentUser && isToSelectedUser);
 
       if (!isRelevantMessage) {
         console.log("Message not relevant to current conversation");
@@ -156,21 +214,60 @@ export const useChatStore = create((set, get) => ({
       }
 
       const currentMessages = get().messages;
-      
-      // Avoid duplicate messages (check if message already exists)
-      const messageExists = currentMessages.some(msg => msg._id === newMessage._id);
-      if (messageExists) {
+      const sameLogicalMatch = (msg) => {
+        const msgId = String(msg._id ?? "");
+        const msgSenderId = String(msg.senderId ?? "");
+        const msgReceiverId = String(msg.receiverId ?? "");
+
+        const sameId = msgId && msgId === normalizedMessage._id;
+        const sameContent =
+          msgSenderId === senderIdStr &&
+          msgReceiverId === receiverIdStr &&
+          (msg.text ?? "") === (normalizedMessage.text ?? "") &&
+          (msg.image ?? "") === (normalizedMessage.image ?? "") &&
+          (msg.video ?? "") === (normalizedMessage.video ?? "");
+
+        return sameId || sameContent;
+      };
+
+      const existingMatch = currentMessages.find((msg) => sameLogicalMatch(msg));
+      if (existingMatch) {
+        const optimisticReplacement = currentMessages.find(
+          (msg) =>
+            msg.isOptimistic &&
+            String(msg.senderId ?? "") === senderIdStr &&
+            String(msg.receiverId ?? "") === receiverIdStr &&
+            (msg.text ?? "") === (normalizedMessage.text ?? "") &&
+            (msg.image ?? "") === (normalizedMessage.image ?? "") &&
+            (msg.video ?? "") === (normalizedMessage.video ?? "")
+        );
+
+        if (optimisticReplacement) {
+          set({
+            messages: currentMessages.map((msg) =>
+              msg._id === optimisticReplacement._id
+                ? { ...normalizedMessage, isDelivered: true, isRead: false, isOptimistic: false }
+                : msg
+            ),
+          });
+        }
+
         console.log("Duplicate message detected, skipping");
         return;
       }
 
+      if (isFromCurrentUser && isToSelectedUser) {
+        console.log("Outgoing socket echo ignored because it matches an optimistic local message");
+        return;
+      }
+
       console.log("Adding new message to state");
-      set({ messages: [...currentMessages, newMessage] });
+      set({ messages: [...currentMessages, normalizedMessage] });
 
       if (isSoundEnabled && isFromSelectedUser) {
         const notificationSound = new Audio("/sounds/notification.mp3");
 
-        notificationSound.currentTime = 0; // reset to start
+        notificationSound.currentTime = 0;
         notificationSound.play().catch((e) => console.log("Audio play failed:", e));
       }
     });
