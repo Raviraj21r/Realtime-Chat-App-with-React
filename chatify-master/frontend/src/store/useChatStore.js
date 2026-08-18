@@ -106,15 +106,32 @@ export const useChatStore = create((set, get) => ({
     if (!selectedUser) return;
 
     const socket = useAuthStore.getState().socket;
+    const { authUser } = useAuthStore.getState();
 
     socket.on("newMessage", (newMessage) => {
-      const isMessageSentFromSelectedUser = newMessage.senderId === selectedUser._id;
-      if (!isMessageSentFromSelectedUser) return;
+      // Only add message if it's part of the current conversation
+      // (either sent by selected user to current user, or sent by current user to selected user)
+      const isFromSelectedUser = newMessage.senderId === selectedUser._id;
+      const isToSelectedUser = newMessage.receiverId === selectedUser._id;
+      const isFromCurrentUser = newMessage.senderId === authUser._id;
+      const isToCurrentUser = newMessage.receiverId === authUser._id;
+
+      // Show message if it's from selected user to current user (incoming)
+      // OR if it's from current user to selected user (outgoing, but received via socket)
+      const isRelevantMessage = (isFromSelectedUser && isToCurrentUser) || 
+                                (isFromCurrentUser && isToSelectedUser);
+
+      if (!isRelevantMessage) return;
 
       const currentMessages = get().messages;
+      
+      // Avoid duplicate messages (check if message already exists)
+      const messageExists = currentMessages.some(msg => msg._id === newMessage._id);
+      if (messageExists) return;
+
       set({ messages: [...currentMessages, newMessage] });
 
-      if (isSoundEnabled) {
+      if (isSoundEnabled && isFromSelectedUser) {
         const notificationSound = new Audio("/sounds/notification.mp3");
 
         notificationSound.currentTime = 0; // reset to start
