@@ -86,17 +86,25 @@ export const useChatStore = create((set, get) => ({
       text: messageData.text,
       image: messageData.image,
       createdAt: new Date().toISOString(),
-      isOptimistic: true, // flag to identify optimistic messages (optional)
+      isOptimistic: true,
+      isDelivered: false, // Single gray tick initially
+      isRead: false,
     };
-    // immidetaly update the ui by adding the message
+    
+    // Immediately update the UI by adding the message
     set({ messages: [...messages, optimisticMessage] });
 
     try {
       const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
-      set({ messages: messages.concat(res.data) });
+      
+      // Replace optimistic message with real message (backend already marks as delivered)
+      const updatedMessages = messages.map(msg => 
+        msg._id === tempId ? { ...res.data, isDelivered: true, isRead: false } : msg
+      );
+      set({ messages: updatedMessages });
     } catch (error) {
-      // remove optimistic message on failure
-      set({ messages: messages });
+      // Remove optimistic message on failure
+      set({ messages: messages.filter(msg => msg._id !== tempId) });
       toast.error(error.response?.data?.message || "Something went wrong");
     }
   },
@@ -117,6 +125,7 @@ export const useChatStore = create((set, get) => ({
     socket.off("newMessage");
     socket.off("messageDeleted");
     socket.off("messagesRead");
+    socket.off("messageDelivered");
 
     console.log("Subscribing to messages for user:", selectedUser._id);
 
@@ -205,6 +214,16 @@ export const useChatStore = create((set, get) => ({
         set({ messages: updatedMessages });
       }
     });
+
+    socket.on("messageDelivered", ({ messageId }) => {
+      const currentMessages = get().messages;
+      console.log("Message delivered:", messageId);
+      
+      const updatedMessages = currentMessages.map((msg) =>
+        msg._id === messageId ? { ...msg, isDelivered: true, isOptimistic: false } : msg
+      );
+      set({ messages: updatedMessages });
+    });
   },
 
   deleteMessage: async (messageId) => {
@@ -236,6 +255,7 @@ export const useChatStore = create((set, get) => ({
     socket.off("newMessage");
     socket.off("messageDeleted");
     socket.off("messagesRead");
+    socket.off("messageDelivered");
   },
 
   markMessagesAsRead: async (senderId) => {

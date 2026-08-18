@@ -63,16 +63,24 @@ export const sendMessage = async (req, res) => {
       receiverId,
       text,
       image: imageUrl,
+      isDelivered: true, // Mark as delivered when saved to DB
     });
 
     await newMessage.save();
 
     // Emit to receiver using consistent string IDs
     const receiverSocketId = getReceiverSocketId(receiverId.toString());
+    const senderSocketId = getReceiverSocketId(senderId.toString());
+    
     console.log("Sending message to socket:", receiverSocketId, "for receiver:", receiverId.toString());
     
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("newMessage", newMessage);
+    }
+    
+    // Emit delivery confirmation to sender
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("messageDelivered", { messageId: newMessage._id.toString() });
     }
 
     res.status(201).json(newMessage);
