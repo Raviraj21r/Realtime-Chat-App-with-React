@@ -7,6 +7,9 @@ export const useChatStore = create((set, get) => ({
   allContacts: [],
   chats: [],
   messages: [],
+  searchResults: [],
+  activeStatuses: [],
+  myStatus: null,
   activeTab: "chats",
   selectedUser: null,
   isUsersLoading: false,
@@ -44,11 +47,25 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  searchUsers: async (query) => {
+    set({ isUsersLoading: true });
+    try {
+      const res = await axiosInstance.get(`/auth/search?query=${query}`);
+      set({ searchResults: res.data });
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to search users");
+    } finally {
+      set({ isUsersLoading: false });
+    }
+  },
+
   getMessagesByUserId: async (userId) => {
     set({ isMessagesLoading: true });
     try {
       const res = await axiosInstance.get(`/messages/${userId}`);
       set({ messages: res.data });
+      // Mark messages as read when fetching
+      await get().markMessagesAsRead(userId);
     } catch (error) {
       toast.error(error.response?.data?.message || "Something went wrong");
     } finally {
@@ -104,14 +121,59 @@ export const useChatStore = create((set, get) => ({
         notificationSound.play().catch((e) => console.log("Audio play failed:", e));
       }
     });
+
+    socket.on("messageDeleted", (messageId) => {
+      const currentMessages = get().messages;
+      const message = currentMessages.find((msg) => msg._id === messageId);
+      
+      // Skip if already being deleted (to avoid duplicate animations)
+      if (message?.isDeleting) return;
+      
+      // Add animation before removal for remote deletions
+      set({ messages: currentMessages.map((msg) =>
+        msg._id === messageId ? { ...msg, isDeleting: true } : msg
+      )});
+
+      // Remove after animation
+      setTimeout(() => {
+        set((state) => ({
+          messages: state.messages.filter((msg) => msg._id !== messageId),
+        }));
+      }, 300);
+    });
+
+    socket.on("messagesRead", ({ senderId, receiverId }) => {
+      const { authUser } = useAuthStore.getState();
+      const currentMessages = get().messages;
+      
+      // Update messages sent by current user that were read by the selected user
+      if (senderId === authUser._id && receiverId === selectedUser._id) {
+        const updatedMessages = currentMessages.map((msg) => 
+          msg.senderId === authUser._id ? { ...msg, isRead: true } : msg
+        );
+        set({ messages: updatedMessages });
+      }
+    });
   },
 
   deleteMessage: async (messageId) => {
     try {
-      await axiosInstance.delete(`/messages/delete/${messageId}`);
+      // Trigger animation immediately for instant feedback
       set((state) => ({
-        messages: state.messages.filter((msg) => msg._id !== messageId),
+        messages: state.messages.map((msg) =>
+          msg._id === messageId ? { ...msg, isDeleting: true } : msg
+        ),
       }));
+
+      await axiosInstance.delete(`/messages/delete/${messageId}`);
+      
+      // Remove after animation for local deletions (socket won't handle this for local user)
+      setTimeout(() => {
+        set((state) => ({
+          messages: state.messages.filter((msg) => msg._id !== messageId),
+        }));
+      }, 300);
+      
       toast.success("Message deleted successfully");
     } catch (error) {
       toast.error(error.response?.data?.error || "Failed to delete message");
@@ -121,5 +183,43 @@ export const useChatStore = create((set, get) => ({
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
     socket.off("newMessage");
+    socket.off("messageDeleted");
+    socket.off("messagesRead");
+  },
+
+  markMessagesAsRead: async (senderId) => {
+    try {
+      await axiosInstance.put(`/messages/read/${senderId}`);
+    } catch (error) {
+      console.error("Failed to mark messages as read:", error);
+    }
+  },
+
+  createStatus: async (statusData) => {
+    try {
+      const res = await axiosInstance.post("/status/create", statusData);
+      set({ myStatus: res.data });
+      toast.success("Status created successfully");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to create status");
+    }
+  },
+
+  getActiveStatuses: async () => {
+    try {
+      const res = await axiosInstance.get("/status/active");
+      set({ activeStatuses: res.data });
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to fetch statuses");
+    }
+  },
+
+  getMyStatus: async () => {
+    try {
+      const res = await axiosInstance.get("/status/my-status");
+      set({ myStatus: res.data });
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to fetch your status");
+    }
   },
 }));

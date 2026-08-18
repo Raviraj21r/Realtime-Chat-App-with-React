@@ -124,9 +124,51 @@ export const deleteMessage = async (req, res) => {
 
     await Message.findByIdAndDelete(messageId);
 
+    // Emit real-time deletion event to both sender and receiver
+    const receiverSocketId = getReceiverSocketId(message.receiverId);
+    const senderSocketId = getReceiverSocketId(message.senderId);
+
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("messageDeleted", messageId);
+    }
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("messageDeleted", messageId);
+    }
+
     res.status(200).json({ message: "Message deleted successfully" });
   } catch (error) {
     console.log("Error in deleteMessage controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const markMessagesAsRead = async (req, res) => {
+  try {
+    const { id: senderId } = req.params;
+    const userId = req.user._id;
+
+    // Mark all unread messages from sender to current user as read
+    await Message.updateMany(
+      {
+        senderId,
+        receiverId: userId,
+        isRead: false,
+      },
+      { isRead: true }
+    );
+
+    // Emit read receipt to sender
+    const senderSocketId = getReceiverSocketId(senderId);
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("messagesRead", {
+        senderId,
+        receiverId: userId,
+      });
+    }
+
+    res.status(200).json({ message: "Messages marked as read" });
+  } catch (error) {
+    console.log("Error in markMessagesAsRead controller: ", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };

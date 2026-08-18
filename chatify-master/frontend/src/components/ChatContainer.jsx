@@ -5,7 +5,7 @@ import ChatHeader from "./ChatHeader";
 import NoChatHistoryPlaceholder from "./NoChatHistoryPlaceholder";
 import MessageInput from "./MessageInput";
 import MessagesLoadingSkeleton from "./MessagesLoadingSkeleton";
-import { Trash2 } from "lucide-react"; // ⚠️ डिलीट आइकॉन के लिए इम्पोर्ट
+import { Trash2, Check, CheckCheck } from "lucide-react";
 
 function ChatContainer() {
   const {
@@ -43,7 +43,7 @@ function ChatContainer() {
             {messages.map((msg) => (
               <div
                 key={msg._id}
-                className={`chat ${msg.senderId === authUser._id ? "chat-end" : "chat-start"}`}
+                className={`chat ${msg.senderId === authUser._id ? "chat-end" : "chat-start"} ${msg.isDeleting ? "message-deleting" : ""}`}
               >
                 <div
                   className={`chat-bubble relative group ${
@@ -58,12 +58,24 @@ function ChatContainer() {
                   {msg.text && <p className="mt-2">{msg.text}</p>}
                   
                   <div className="flex items-center justify-between gap-2 mt-1">
-                    <p className="text-xs opacity-75">
-                      {new Date(msg.createdAt).toLocaleTimeString(undefined, {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
+                    <div className="flex items-center gap-1">
+                      {/* Read receipts for sent messages */}
+                      {msg.senderId === authUser._id && (
+                        <>
+                          {msg.isRead ? (
+                            <CheckCheck className="w-3.5 h-3.5 text-blue-400" />
+                          ) : (
+                            <Check className="w-3.5 h-3.5 text-gray-400" />
+                          )}
+                        </>
+                      )}
+                      <p className="text-xs opacity-75">
+                        {new Date(msg.createdAt).toLocaleTimeString(undefined, {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
 
                     {/* ⚠️ केवल आपके खुद के मैसेज पर डिलीट बटन दिखेगा */}
                     {msg.senderId === authUser._id && !msg.isOptimistic && (

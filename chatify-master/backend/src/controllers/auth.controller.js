@@ -122,3 +122,32 @@ export const updateProfile = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export const searchUsers = async (req, res) => {
+  try {
+    const { query } = req.query;
+    
+    if (!query) {
+      return res.status(400).json({ message: "Search query is required" });
+    }
+
+    const currentUserId = req.user._id;
+
+    const users = await User.find({
+      $and: [
+        { _id: { $ne: currentUserId } },
+        {
+          $or: [
+            { fullName: { $regex: query, $options: "i" } },
+            { email: { $regex: query, $options: "i" } }
+          ]
+        }
+      ]
+    }).select("_id fullName email profilePic");
+
+    res.status(200).json(users);
+  } catch (error) {
+    console.log("Error in search users:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
