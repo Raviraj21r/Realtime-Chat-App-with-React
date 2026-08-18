@@ -108,27 +108,49 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
     const { authUser } = useAuthStore.getState();
 
+    if (!socket) {
+      console.error("Socket not available for message subscription");
+      return;
+    }
+
+    console.log("Subscribing to messages for user:", selectedUser._id);
+
     socket.on("newMessage", (newMessage) => {
+      console.log("New message received:", newMessage);
+
+      // Ensure consistent string comparison
+      const selectedUserIdStr = selectedUser._id.toString();
+      const authUserIdStr = authUser._id.toString();
+      const senderIdStr = newMessage.senderId?.toString();
+      const receiverIdStr = newMessage.receiverId?.toString();
+
       // Only add message if it's part of the current conversation
       // (either sent by selected user to current user, or sent by current user to selected user)
-      const isFromSelectedUser = newMessage.senderId === selectedUser._id;
-      const isToSelectedUser = newMessage.receiverId === selectedUser._id;
-      const isFromCurrentUser = newMessage.senderId === authUser._id;
-      const isToCurrentUser = newMessage.receiverId === authUser._id;
+      const isFromSelectedUser = senderIdStr === selectedUserIdStr;
+      const isToSelectedUser = receiverIdStr === selectedUserIdStr;
+      const isFromCurrentUser = senderIdStr === authUserIdStr;
+      const isToCurrentUser = receiverIdStr === authUserIdStr;
 
       // Show message if it's from selected user to current user (incoming)
       // OR if it's from current user to selected user (outgoing, but received via socket)
       const isRelevantMessage = (isFromSelectedUser && isToCurrentUser) || 
                                 (isFromCurrentUser && isToSelectedUser);
 
-      if (!isRelevantMessage) return;
+      if (!isRelevantMessage) {
+        console.log("Message not relevant to current conversation");
+        return;
+      }
 
       const currentMessages = get().messages;
       
       // Avoid duplicate messages (check if message already exists)
       const messageExists = currentMessages.some(msg => msg._id === newMessage._id);
-      if (messageExists) return;
+      if (messageExists) {
+        console.log("Duplicate message detected, skipping");
+        return;
+      }
 
+      console.log("Adding new message to state");
       set({ messages: [...currentMessages, newMessage] });
 
       if (isSoundEnabled && isFromSelectedUser) {
@@ -163,10 +185,17 @@ export const useChatStore = create((set, get) => ({
       const { authUser } = useAuthStore.getState();
       const currentMessages = get().messages;
       
+      // Ensure consistent string comparison
+      const authUserIdStr = authUser._id.toString();
+      const selectedUserIdStr = selectedUser._id.toString();
+      const senderIdStr = senderId?.toString();
+      const receiverIdStr = receiverId?.toString();
+      
       // Update messages sent by current user that were read by the selected user
-      if (senderId === authUser._id && receiverId === selectedUser._id) {
+      if (senderIdStr === authUserIdStr && receiverIdStr === selectedUserIdStr) {
+        console.log("Updating read status for messages from authUser to selectedUser");
         const updatedMessages = currentMessages.map((msg) => 
-          msg.senderId === authUser._id ? { ...msg, isRead: true } : msg
+          msg.senderId.toString() === authUserIdStr ? { ...msg, isRead: true } : msg
         );
         set({ messages: updatedMessages });
       }

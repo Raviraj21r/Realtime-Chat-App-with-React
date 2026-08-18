@@ -31,9 +31,9 @@ export const socketAuthMiddleware = async (socket, next) => {
 
     // attach user info to socket
     socket.user = user;
-    socket.userId = user._id.toString();
+    socket.userId = user._id.toString(); // Ensure consistent string storage
 
-    console.log(`Socket authenticated for user: ${user.fullName} (${user._id})`);
+    console.log(`Socket authenticated for user: ${user.fullName} (${socket.userId})`);
 
     next();
   } catch (error) {

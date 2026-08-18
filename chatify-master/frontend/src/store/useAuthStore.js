@@ -86,6 +86,9 @@ export const useAuthStore = create((set, get) => ({
 
     const socket = io(BASE_URL, {
       withCredentials: true, // this ensures cookies are sent with the connection
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
     });
 
     socket.connect();
@@ -94,11 +97,30 @@ export const useAuthStore = create((set, get) => ({
 
     // listen for online users event
     socket.on("getOnlineUsers", (userIds) => {
+      console.log("Online users received:", userIds);
       set({ onlineUsers: userIds });
+    });
+
+    // Handle connection events
+    socket.on("connect", () => {
+      console.log("Socket connected successfully");
+    });
+
+    socket.on("disconnect", () => {
+      console.log("Socket disconnected");
+    });
+
+    socket.on("connect_error", (error) => {
+      console.log("Socket connection error:", error);
     });
   },
 
   disconnectSocket: () => {
-    if (get().socket?.connected) get().socket.disconnect();
+    const socket = get().socket;
+    if (socket?.connected) {
+      socket.disconnect();
+      socket.removeAllListeners();
+      set({ socket: null, onlineUsers: [] });
+    }
   },
 }));

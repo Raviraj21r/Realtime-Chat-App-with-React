@@ -67,7 +67,10 @@ export const sendMessage = async (req, res) => {
 
     await newMessage.save();
 
-    const receiverSocketId = getReceiverSocketId(receiverId);
+    // Emit to receiver using consistent string IDs
+    const receiverSocketId = getReceiverSocketId(receiverId.toString());
+    console.log("Sending message to socket:", receiverSocketId, "for receiver:", receiverId.toString());
+    
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("newMessage", newMessage);
     }
@@ -124,9 +127,12 @@ export const deleteMessage = async (req, res) => {
 
     await Message.findByIdAndDelete(messageId);
 
-    // Emit real-time deletion event to both sender and receiver
-    const receiverSocketId = getReceiverSocketId(message.receiverId);
-    const senderSocketId = getReceiverSocketId(message.senderId);
+    // Emit real-time deletion event to both sender and receiver using consistent string IDs
+    const receiverSocketId = getReceiverSocketId(message.receiverId.toString());
+    const senderSocketId = getReceiverSocketId(message.senderId.toString());
+    
+    console.log("Sending deletion event to receiver socket:", receiverSocketId);
+    console.log("Sending deletion event to sender socket:", senderSocketId);
 
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("messageDeleted", messageId);
@@ -157,12 +163,14 @@ export const markMessagesAsRead = async (req, res) => {
       { isRead: true }
     );
 
-    // Emit read receipt to sender
-    const senderSocketId = getReceiverSocketId(senderId);
+    // Emit read receipt to sender using consistent string IDs
+    const senderSocketId = getReceiverSocketId(senderId.toString());
+    console.log("Sending read receipt to socket:", senderSocketId, "for sender:", senderId.toString());
+    
     if (senderSocketId) {
       io.to(senderSocketId).emit("messagesRead", {
-        senderId,
-        receiverId: userId,
+        senderId: senderId.toString(),
+        receiverId: userId.toString(),
       });
     }
 
