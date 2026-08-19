@@ -54,7 +54,7 @@ function ChatContainer() {
   };
 
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden bg-[#0b141a]" onClick={() => setDeleteMenuOpen(null)}>
+    <div className="h-[100dvh] w-full flex flex-col overflow-hidden overflow-x-hidden bg-[#0b141a]" onClick={() => setDeleteMenuOpen(null)}>
       <ChatHeader />
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2 sm:px-4 py-2">
         {messages.length > 0 && !isMessagesLoading ? (

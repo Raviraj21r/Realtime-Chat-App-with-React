@@ -13,22 +13,45 @@ function ChatPage() {
   const { activeTab, selectedUser } = useChatStore();
 
   return (
-    <div className="relative w-full h-screen bg-[#0b141a]">
-      <div className="h-full flex flex-col md:flex-row">
-        {/* LEFT SIDE - Sidebar */}
-        <div className={`${selectedUser ? 'hidden md:flex' : 'flex'} w-full md:w-[420px] lg:w-[450px] bg-[#111b21] flex flex-col border-r border-[#202c33]`}>
-          <ProfileHeader />
-          <ActiveTabSwitch />
-          <StatusBar />
+    <div className="relative w-full h-screen bg-[#0b141a] overflow-x-hidden">
+      <div className="h-full w-full overflow-x-hidden">
+        {/* LEFT SIDE - Sidebar - Only show on mobile when no user selected, always show on desktop */}
+        {!selectedUser && (
+          <div className="h-full w-full md:w-[420px] lg:w-[450px] md:flex flex-col bg-[#111b21] border-r border-[#2a3942]">
+            <ProfileHeader />
+            <ActiveTabSwitch />
+            <StatusBar />
 
-          <div className="flex-1 overflow-y-auto p-0 space-y-0">
-            {activeTab === "chats" ? <ChatsList /> : <ContactList />}
+            <div className="flex-1 overflow-y-auto p-0 space-y-0">
+              {activeTab === "chats" ? <ChatsList /> : <ContactList />}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* RIGHT SIDE - Chat Area */}
-        <div className={`${selectedUser ? 'flex' : 'hidden md:flex'} flex-1 flex-col bg-[#0b141a]`}>
-          {selectedUser ? <ChatContainer /> : <NoConversationPlaceholder />}
+        {/* RIGHT SIDE - Chat Area - Only show on mobile when user selected, always show on desktop */}
+        {selectedUser && (
+          <div className="h-full w-full flex flex-col bg-[#0b141a]">
+            <ChatContainer />
+          </div>
+        )}
+
+        {/* Desktop: Show both sidebar and chat side-by-side */}
+        <div className="hidden md:flex h-full w-full">
+          {/* Desktop Sidebar */}
+          <div className="w-[420px] lg:w-[450px] flex flex-col bg-[#111b21] border-r border-[#2a3942]">
+            <ProfileHeader />
+            <ActiveTabSwitch />
+            <StatusBar />
+
+            <div className="flex-1 overflow-y-auto p-0 space-y-0">
+              {activeTab === "chats" ? <ChatsList /> : <ContactList />}
+            </div>
+          </div>
+
+          {/* Desktop Chat Area */}
+          <div className="flex-1 flex flex-col bg-[#0b141a]">
+            {selectedUser ? <ChatContainer /> : <NoConversationPlaceholder />}
+          </div>
         </div>
       </div>
     </div>

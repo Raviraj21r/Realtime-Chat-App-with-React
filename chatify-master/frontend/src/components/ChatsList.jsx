@@ -16,7 +16,7 @@ function ChatsList() {
   if (chats.length === 0) return <NoChatsFound />;
 
   return (
-    <>
+    <div className="overflow-x-hidden">
       {chats.map((chat) => (
         <div
           key={chat._id}
@@ -40,7 +40,7 @@ function ChatsList() {
           </div>
         </div>
       ))}
-    </>
+    </div>
   );
 }
 export default ChatsList;

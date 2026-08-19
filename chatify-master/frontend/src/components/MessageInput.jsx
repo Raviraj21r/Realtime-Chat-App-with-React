@@ -81,8 +81,8 @@ function MessageInput() {
 
   return (
     <>
-      <div className="bg-[#202c33] border-t border-[#2a3942] p-2 sm:p-3 flex-shrink-0">
-        <form onSubmit={handleSendMessage} className="max-w-3xl mx-auto flex items-center gap-2">
+      <div className="bg-[#202c33] border-t border-[#2a3942] p-2 sm:p-3 flex-shrink-0 w-full overflow-x-hidden">
+        <form onSubmit={handleSendMessage} className="max-w-3xl mx-auto flex items-center gap-2 w-full">
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
@@ -122,7 +122,7 @@ function MessageInput() {
 
       {/* Media Preview Modal */}
       {showMediaModal && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-x-hidden">
           <div className="bg-[#202c33] rounded-2xl p-6 w-full max-w-lg shadow-2xl">
             <h3 className="text-xl font-semibold text-[#e9edef] mb-4">Preview {mediaType === 'image' ? 'Image' : 'Video'}</h3>
 

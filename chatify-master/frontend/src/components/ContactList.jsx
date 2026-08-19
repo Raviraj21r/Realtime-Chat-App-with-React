@@ -23,7 +23,7 @@ function ContactList() {
   if (isUsersLoading) return <UsersLoadingSkeleton />;
 
   return (
-    <div className="space-y-0">
+    <div className="space-y-0 overflow-x-hidden">
       <div className="px-4 py-2 bg-[#111b21]">
         <div className="relative">
           <input
