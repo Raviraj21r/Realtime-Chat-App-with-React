@@ -73,15 +73,20 @@ function MessageInput() {
     resetMedia();
   };
 
+  const removeImage = () => {
+    setMediaPreview(null);
+    setMediaCaption("");
+    setShowMediaModal(false);
+  };
+
   return (
     <>
-      <div className="bg-slate-800/95 border-t border-slate-700/50 p-4 flex-shrink-0">
-        <form onSubmit={handleSendMessage} className="max-w-3xl mx-auto flex items-center gap-3">
+      <div className="bg-slate-800/90 backdrop-blur-xl border-t border-slate-700/50 p-3 sm:p-4 flex-shrink-0">
+        <form onSubmit={handleSendMessage} className="max-w-3xl mx-auto flex items-center gap-2 sm:gap-3">
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="flex-shrink-0 bg-slate-700/50 text-slate-400 hover:text-slate-200 rounded-lg p-3 transition-colors"
-            title="Send image or video"
+            className="flex-shrink-0 bg-slate-700/50 text-slate-400 hover:text-slate-200 rounded-full p-2.5 sm:p-3 transition-colors"
           >
             <ImageIcon className="w-5 h-5" />
           </button>
@@ -101,41 +106,39 @@ function MessageInput() {
               setText(e.target.value);
               isSoundEnabled && playRandomKeyStrokeSound();
             }}
-            className="flex-1 min-w-0 bg-slate-700/50 border border-slate-600/50 rounded-lg py-3 px-4 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+            className="flex-1 min-w-0 bg-slate-700/50 border border-slate-600/50 rounded-full py-2.5 sm:py-3 px-4 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
             placeholder="Type a message..."
           />
 
           <button
             type="submit"
             disabled={!text.trim() && !mediaPreview}
-            className="flex-shrink-0 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-lg p-3 font-medium hover:from-cyan-600 hover:to-cyan-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-shrink-0 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-full p-2.5 sm:p-3 font-medium hover:from-cyan-600 hover:to-cyan-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <SendIcon className="w-5 h-5" />
           </button>
         </form>
       </div>
 
+      {/* Media Preview Modal */}
       {showMediaModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-xl p-6 w-full max-w-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold text-slate-200">
-                {mediaType === "video" ? "Preview Video" : "Preview Image"}
-              </h3>
-              <button
-                type="button"
-                onClick={resetMedia}
-                className="text-slate-400 hover:text-slate-200"
-              >
-                <XIcon className="w-5 h-5" />
-              </button>
-            </div>
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-lg shadow-2xl">
+            <h3 className="text-xl font-semibold text-slate-200 mb-4">Preview {mediaType === 'image' ? 'Image' : 'Video'}</h3>
 
             <div className="mb-4">
-              {mediaType === "video" ? (
-                <video src={mediaPreview} controls className="w-full h-64 rounded-lg object-cover bg-slate-950" />
+              {mediaType === 'image' ? (
+                <img
+                  src={mediaPreview}
+                  alt="Preview"
+                  className="w-full h-64 object-cover rounded-xl"
+                />
               ) : (
-                <img src={mediaPreview} alt="Preview" className="w-full h-64 object-cover rounded-lg" />
+                <video
+                  src={mediaPreview}
+                  controls
+                  className="w-full h-64 object-cover rounded-xl bg-slate-950"
+                />
               )}
             </div>
 
@@ -145,21 +148,21 @@ function MessageInput() {
                 value={mediaCaption}
                 onChange={(e) => setMediaCaption(e.target.value)}
                 placeholder="Type a caption..."
-                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"
+                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none transition-all"
                 rows={3}
               />
             </div>
 
             <div className="flex gap-3">
               <button
-                onClick={resetMedia}
-                className="flex-1 px-4 py-3 bg-slate-700 text-slate-200 rounded-lg hover:bg-slate-600 transition-colors"
+                onClick={removeImage}
+                className="flex-1 px-4 py-3 bg-slate-700 text-slate-200 rounded-xl hover:bg-slate-600 transition-colors font-medium"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSendFromModal}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-lg hover:from-cyan-600 hover:to-cyan-700 transition-all font-medium"
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-xl hover:from-cyan-600 hover:to-cyan-700 transition-all font-medium"
               >
                 Send
               </button>

@@ -20,16 +20,23 @@ function ChatsList() {
       {chats.map((chat) => (
         <div
           key={chat._id}
-          className="bg-cyan-500/10 p-4 rounded-lg cursor-pointer hover:bg-cyan-500/20 transition-colors"
+          className="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-slate-700/50 transition-all duration-200 active:scale-[0.98]"
           onClick={() => setSelectedUser(chat)}
         >
-          <div className="flex items-center gap-3">
+          <div className="relative flex-shrink-0">
             <div className={`avatar ${onlineUsers.includes(chat._id) ? "online" : "offline"}`}>
-              <div className="size-12 rounded-full">
+              <div className="w-12 h-12 rounded-full">
                 <img src={chat.profilePic || "/avatar.png"} alt={chat.fullName} />
               </div>
             </div>
-            <h4 className="text-slate-200 font-medium truncate">{chat.fullName}</h4>
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between">
+              <h4 className="text-slate-200 font-semibold truncate">{chat.fullName}</h4>
+              <span className="text-xs text-slate-500">12:30</span>
+            </div>
+            <p className="text-slate-400 text-sm truncate mt-1">Tap to start chatting</p>
           </div>
         </div>
       ))}

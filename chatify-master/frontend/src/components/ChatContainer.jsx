@@ -35,18 +35,18 @@ function ChatContainer() {
   }, [messages]);
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-screen flex flex-col overflow-hidden">
       <ChatHeader />
-      <div className="flex-1 min-h-0 overflow-y-auto px-2 sm:px-4 py-2">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2 sm:px-4 py-2">
         {messages.length > 0 && !isMessagesLoading ? (
-          <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6 pb-4">
+          <div className="max-w-3xl mx-auto space-y-2 pb-4">
             {messages.map((msg) => (
               <div
                 key={msg._id}
                 className={`chat ${msg.senderId === authUser._id ? "chat-end" : "chat-start"} ${msg.isDeleting ? "message-deleting" : ""}`}
               >
                 <div
-                  className={`chat-bubble relative group max-w-[85%] sm:max-w-[70%] ${
+                  className={`chat-bubble relative group max-w-[80%] sm:max-w-[70%] ${
                     msg.senderId === authUser._id
                       ? "bg-cyan-600 text-white"
                       : "bg-slate-800 text-slate-200"
