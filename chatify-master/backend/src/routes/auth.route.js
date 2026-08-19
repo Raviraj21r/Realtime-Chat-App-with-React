@@ -5,16 +5,15 @@ import { arcjetProtection } from "../middleware/arcjet.middleware.js";
 
 const router = express.Router();
 
-router.use(arcjetProtection);
-
+// Apply arcjet protection only to protected routes, not to signup/login
 router.post("/signup", signup);
 router.post("/login", login);
 router.post("/logout", logout);
 
-router.put("/update-profile", protectRoute, updateProfile);
+router.put("/update-profile", protectRoute, arcjetProtection, updateProfile);
 
 router.get("/check", protectRoute, (req, res) => res.status(200).json(req.user));
 
-router.get("/search", protectRoute, searchUsers);
+router.get("/search", protectRoute, arcjetProtection, searchUsers);
 
 export default router;

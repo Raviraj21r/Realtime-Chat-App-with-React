@@ -21,31 +21,31 @@ function ChatHeader() {
 
   return (
     <div
-      className="flex justify-between items-center bg-slate-800/80 backdrop-blur-xl border-b border-slate-700/50 px-4 py-3 flex-shrink-0"
+      className="flex justify-between items-center bg-[#202c33] border-b border-[#2a3942] px-4 py-3 flex-shrink-0"
     >
       <div className="flex items-center space-x-3">
         {/* Mobile Back Button */}
         <button
           onClick={() => setSelectedUser(null)}
-          className="md:hidden p-2 -ml-2 text-slate-400 hover:text-slate-200 transition-colors"
+          className="md:hidden p-2 -ml-2 text-[#aebac1] hover:text-[#e9edef] transition-colors"
         >
           <ArrowLeft className="w-6 h-6" />
         </button>
 
         <div className={`avatar ${isOnline ? "online" : "offline"}`}>
-          <div className="w-12 rounded-full">
+          <div className="w-10 h-10 rounded-full">
             <img src={selectedUser.profilePic || "/avatar.png"} alt={selectedUser.fullName} />
           </div>
         </div>
 
         <div>
-          <h3 className="text-slate-200 font-medium">{selectedUser.fullName}</h3>
-          <p className="text-slate-400 text-sm">{isOnline ? "Online" : "Offline"}</p>
+          <h3 className="text-[#e9edef] font-medium text-base">{selectedUser.fullName}</h3>
+          <p className="text-[#8696a0] text-sm">{isOnline ? "online" : "offline"}</p>
         </div>
       </div>
 
       <button onClick={() => setSelectedUser(null)} className="hidden md:block">
-        <XIcon className="w-5 h-5 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer" />
+        <XIcon className="w-5 h-5 text-[#aebac1] hover:text-[#e9edef] transition-colors cursor-pointer" />
       </button>
     </div>
   );

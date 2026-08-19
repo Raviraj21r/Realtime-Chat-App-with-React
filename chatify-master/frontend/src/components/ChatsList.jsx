@@ -20,7 +20,7 @@ function ChatsList() {
       {chats.map((chat) => (
         <div
           key={chat._id}
-          className="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-slate-700/50 transition-all duration-200 active:scale-[0.98]"
+          className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[#202c33] transition-colors active:bg-[#2a3942]"
           onClick={() => setSelectedUser(chat)}
         >
           <div className="relative flex-shrink-0">
@@ -31,12 +31,12 @@ function ChatsList() {
             </div>
           </div>
           
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 border-b border-[#202c33] pb-3">
             <div className="flex items-center justify-between">
-              <h4 className="text-slate-200 font-semibold truncate">{chat.fullName}</h4>
-              <span className="text-xs text-slate-500">12:30</span>
+              <h4 className="text-[#e9edef] font-medium truncate text-base">{chat.fullName}</h4>
+              <span className="text-xs text-[#8696a0]">12:30</span>
             </div>
-            <p className="text-slate-400 text-sm truncate mt-1">Tap to start chatting</p>
+            <p className="text-[#8696a0] text-sm truncate mt-0.5">Tap to start chatting</p>
           </div>
         </div>
       ))}

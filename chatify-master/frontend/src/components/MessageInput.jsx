@@ -81,14 +81,14 @@ function MessageInput() {
 
   return (
     <>
-      <div className="bg-slate-800/90 backdrop-blur-xl border-t border-slate-700/50 p-3 sm:p-4 flex-shrink-0">
-        <form onSubmit={handleSendMessage} className="max-w-3xl mx-auto flex items-center gap-2 sm:gap-3">
+      <div className="bg-[#202c33] border-t border-[#2a3942] p-2 sm:p-3 flex-shrink-0">
+        <form onSubmit={handleSendMessage} className="max-w-3xl mx-auto flex items-center gap-2">
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="flex-shrink-0 bg-slate-700/50 text-slate-400 hover:text-slate-200 rounded-full p-2.5 sm:p-3 transition-colors"
+            className="flex-shrink-0 text-[#8696a0] hover:text-[#e9edef] rounded-full p-2 transition-colors"
           >
-            <ImageIcon className="w-5 h-5" />
+            <ImageIcon className="w-6 h-6" />
           </button>
 
           <input
@@ -106,14 +106,14 @@ function MessageInput() {
               setText(e.target.value);
               isSoundEnabled && playRandomKeyStrokeSound();
             }}
-            className="flex-1 min-w-0 bg-slate-700/50 border border-slate-600/50 rounded-full py-2.5 sm:py-3 px-4 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
+            className="flex-1 min-w-0 bg-[#2a3942] border border-[#3b4a54] rounded-full py-2.5 px-4 text-[#e9edef] placeholder-[#8696a0] focus:outline-none focus:border-[#00a884] transition-all text-sm"
             placeholder="Type a message..."
           />
 
           <button
             type="submit"
             disabled={!text.trim() && !mediaPreview}
-            className="flex-shrink-0 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-full p-2.5 sm:p-3 font-medium hover:from-cyan-600 hover:to-cyan-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-shrink-0 bg-[#00a884] text-[#e9edef] rounded-full p-2.5 font-medium hover:bg-[#00a884]/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <SendIcon className="w-5 h-5" />
           </button>
@@ -123,8 +123,8 @@ function MessageInput() {
       {/* Media Preview Modal */}
       {showMediaModal && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-lg shadow-2xl">
-            <h3 className="text-xl font-semibold text-slate-200 mb-4">Preview {mediaType === 'image' ? 'Image' : 'Video'}</h3>
+          <div className="bg-[#202c33] rounded-2xl p-6 w-full max-w-lg shadow-2xl">
+            <h3 className="text-xl font-semibold text-[#e9edef] mb-4">Preview {mediaType === 'image' ? 'Image' : 'Video'}</h3>
 
             <div className="mb-4">
               {mediaType === 'image' ? (
@@ -137,18 +137,18 @@ function MessageInput() {
                 <video
                   src={mediaPreview}
                   controls
-                  className="w-full h-64 object-cover rounded-xl bg-slate-950"
+                  className="w-full h-64 object-cover rounded-xl bg-[#0b141a]"
                 />
               )}
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm text-slate-400 mb-2">Add a caption (optional)</label>
+              <label className="block text-sm text-[#8696a0] mb-2">Add a caption (optional)</label>
               <textarea
                 value={mediaCaption}
                 onChange={(e) => setMediaCaption(e.target.value)}
                 placeholder="Type a caption..."
-                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none transition-all"
+                className="w-full px-4 py-3 bg-[#2a3942] border border-[#3b4a54] rounded-xl text-[#e9edef] placeholder-[#8696a0] focus:outline-none focus:border-[#00a884] resize-none transition-all"
                 rows={3}
               />
             </div>
@@ -156,13 +156,13 @@ function MessageInput() {
             <div className="flex gap-3">
               <button
                 onClick={removeImage}
-                className="flex-1 px-4 py-3 bg-slate-700 text-slate-200 rounded-xl hover:bg-slate-600 transition-colors font-medium"
+                className="flex-1 px-4 py-3 bg-[#2a3942] text-[#e9edef] rounded-xl hover:bg-[#3b4a54] transition-colors font-medium"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSendFromModal}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-xl hover:from-cyan-600 hover:to-cyan-700 transition-all font-medium"
+                className="flex-1 px-4 py-3 bg-[#00a884] text-[#e9edef] rounded-xl hover:bg-[#00a884]/90 transition-all font-medium"
               >
                 Send
               </button>

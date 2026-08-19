@@ -8,6 +8,8 @@ import cloudinary from "../lib/cloudinary.js";
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
 
+  console.log("Signup attempt:", { fullName, email });
+
   try {
     if (!fullName || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
@@ -44,13 +46,14 @@ export const signup = async (req, res) => {
       // after CR:
       // Persist user first, then issue auth cookie
       const savedUser = await newUser.save();
+      console.log("User saved successfully:", savedUser._id);
       generateToken(savedUser._id, res);
 
       res.status(201).json({
-        _id: newUser._id,
-        fullName: newUser.fullName,
-        email: newUser.email,
-        profilePic: newUser.profilePic,
+        _id: savedUser._id,
+        fullName: savedUser.fullName,
+        email: savedUser.email,
+        profilePic: savedUser.profilePic,
       });
 
       try {
@@ -62,7 +65,21 @@ export const signup = async (req, res) => {
       res.status(400).json({ message: "Invalid user data" });
     }
   } catch (error) {
-    console.log("Error in signup controller:", error);
+    console.error("Error in signup controller:", error);
+    
+    // Handle specific MongoDB errors
+    if (error.code === 11000) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
+    
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ message: error.message });
+    }
+    
+    if (error.name === 'MongoError' && error.message.includes('ECONNREFUSED')) {
+      return res.status(500).json({ message: "Database connection failed. Please try again later." });
+    }
+    
     res.status(500).json({ message: "Internal server error" });
   }
 };

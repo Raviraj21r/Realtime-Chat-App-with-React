@@ -3,6 +3,7 @@ import { useAuthStore } from "../store/useAuthStore";
 import BorderAnimatedContainer from "../components/BorderAnimatedContainer";
 import { MessageCircleIcon, LockIcon, MailIcon, UserIcon, LoaderIcon } from "lucide-react";
 import { Link } from "react-router";
+import toast from "react-hot-toast";
 
 function SignUpPage() {
   const [formData, setFormData] = useState({ fullName: "", email: "", password: "" });
@@ -10,6 +11,24 @@ function SignUpPage() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Client-side validation
+    if (!formData.fullName.trim() || !formData.email.trim() || !formData.password.trim()) {
+      toast.error("All fields are required");
+      return;
+    }
+    
+    if (formData.password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast.error("Invalid email format");
+      return;
+    }
+    
     signup(formData);
   };
 
