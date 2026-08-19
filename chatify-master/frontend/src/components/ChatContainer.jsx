@@ -15,19 +15,21 @@ function ChatContainer() {
     isMessagesLoading,
     subscribeToMessages,
     unsubscribeFromMessages,
-    deleteMessage, // स्टोर से deleteMessage फंक्शन ले लिया
+    deleteMessage,
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
   const [deleteMenuOpen, setDeleteMenuOpen] = useState(null);
 
   useEffect(() => {
+    if (!selectedUser) return undefined;
+
     getMessagesByUserId(selectedUser._id);
     subscribeToMessages();
 
     // clean up
     return () => unsubscribeFromMessages();
-  }, [selectedUser._id]); // Only re-run when selectedUser changes
+  }, [selectedUser, getMessagesByUserId, subscribeToMessages, unsubscribeFromMessages]);
 
   useEffect(() => {
     if (messageEndRef.current) {

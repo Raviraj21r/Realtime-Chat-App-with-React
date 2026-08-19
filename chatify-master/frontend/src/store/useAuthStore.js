@@ -82,7 +82,7 @@ export const useAuthStore = create((set, get) => ({
 
   connectSocket: () => {
     const { authUser } = get();
-    if (!authUser || get().socket?.connected) return;
+    if (!authUser || get().socket) return;
 
     const socket = io(BASE_URL, {
       withCredentials: true, // this ensures cookies are sent with the connection
@@ -91,8 +91,6 @@ export const useAuthStore = create((set, get) => ({
       reconnectionDelay: 1000,
       transports: ["websocket", "polling"], // Ensure both transports are available
     });
-
-    socket.connect();
 
     set({ socket });
 
@@ -118,10 +116,10 @@ export const useAuthStore = create((set, get) => ({
 
   disconnectSocket: () => {
     const socket = get().socket;
-    if (socket?.connected) {
-      socket.disconnect();
-      socket.removeAllListeners();
-      set({ socket: null, onlineUsers: [] });
-    }
+    if (!socket) return;
+
+    socket.removeAllListeners();
+    socket.disconnect();
+    set({ socket: null, onlineUsers: [] });
   },
 }));

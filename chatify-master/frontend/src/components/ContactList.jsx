@@ -4,7 +4,7 @@ import UsersLoadingSkeleton from "./UsersLoadingSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 
 function ContactList() {
-  const { getAllContacts, allContacts, setSelectedUser, isUsersLoading, searchUsers, searchResults } = useChatStore();
+  const { getAllContacts, allContacts, setSelectedUser, isUsersLoading, searchUsers, searchResults, sendFollowRequest } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -48,7 +48,7 @@ function ContactList() {
           <div
             key={contact._id}
             className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[#202c33] transition-colors active:bg-[#2a3942]"
-            onClick={() => setSelectedUser(contact)}
+            onClick={() => contact.relationshipStatus === "accepted" && setSelectedUser(contact)}
           >
             <div className="relative flex-shrink-0">
               <div className={`avatar ${onlineUsers.includes(contact._id) ? "online" : "offline"}`}>
@@ -62,6 +62,20 @@ function ContactList() {
               <h4 className="text-[#e9edef] font-medium truncate text-base">{contact.fullName}</h4>
               {searchQuery.trim() && <p className="text-[#8696a0] text-sm truncate">{contact.email}</p>}
             </div>
+            {searchQuery.trim() && contact.relationshipStatus !== "accepted" && (
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (contact.relationshipStatus === "none" || contact.relationshipStatus === "rejected") {
+                    sendFollowRequest(contact._id);
+                  }
+                }}
+                disabled={contact.relationshipStatus === "pending"}
+                className="text-sm text-[#00a884] disabled:text-[#8696a0] disabled:cursor-not-allowed"
+              >
+                {contact.relationshipStatus === "pending" ? "Requested" : "Follow"}
+              </button>
+            )}
           </div>
         ))
       )}

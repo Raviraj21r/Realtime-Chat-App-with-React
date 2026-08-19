@@ -2,10 +2,9 @@ import { ArrowLeft, XIcon, MoreVertical } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
 import { useEffect, useState, useRef } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import toast from "react-hot-toast";
 
 function ChatHeader() {
-  const { selectedUser, setSelectedUser, messages, clearChat } = useChatStore();
+  const { selectedUser, setSelectedUser, clearChat } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const isOnline = onlineUsers.includes(selectedUser._id);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -33,8 +32,8 @@ function ChatHeader() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleClearChat = () => {
-    clearChat(selectedUser._id);
+  const handleClearChat = async () => {
+    await clearChat(selectedUser._id);
     setMenuOpen(false);
   };
 

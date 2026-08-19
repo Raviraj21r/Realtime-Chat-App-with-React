@@ -4,6 +4,7 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import { ENV } from "../lib/env.js";
 import cloudinary from "../lib/cloudinary.js";
+import Relationship from "../models/Relationship.js";
 
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
@@ -149,7 +150,6 @@ export const searchUsers = async (req, res) => {
     }
 
     const currentUserId = req.user._id;
-
     const users = await User.find({
       $and: [
         { _id: { $ne: currentUserId } },
@@ -162,7 +162,23 @@ export const searchUsers = async (req, res) => {
       ]
     }).select("_id fullName email profilePic");
 
-    res.status(200).json(users);
+    const relationships = await Relationship.find({
+      $or: [{ followerId: currentUserId }, { followingId: currentUserId }],
+    }).select("followerId followingId status");
+    const relationshipByUser = new Map();
+    relationships.forEach((relationship) => {
+      const otherUserId = relationship.followerId.toString() === currentUserId.toString()
+        ? relationship.followingId.toString()
+        : relationship.followerId.toString();
+      relationshipByUser.set(otherUserId, relationship);
+    });
+
+    const usersWithRelationship = users.map((user) => ({
+      ...user.toObject(),
+      relationshipStatus: relationshipByUser.get(user._id.toString())?.status || "none",
+    }));
+
+    res.status(200).json(usersWithRelationship);
   } catch (error) {
     console.log("Error in search users:", error);
     res.status(500).json({ message: "Internal server error" });

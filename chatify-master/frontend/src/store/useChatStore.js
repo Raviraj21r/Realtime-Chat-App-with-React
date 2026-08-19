@@ -8,6 +8,7 @@ export const useChatStore = create((set, get) => ({
   chats: [],
   messages: [],
   searchResults: [],
+  followRequests: [],
   activeStatuses: [],
   myStatus: null,
   activeTab: "chats",
@@ -44,6 +45,45 @@ export const useChatStore = create((set, get) => ({
       toast.error(error.response.data.message);
     } finally {
       set({ isUsersLoading: false });
+    }
+  },
+
+  getFollowRequests: async () => {
+    set({ isUsersLoading: true });
+    try {
+      const res = await axiosInstance.get("/relationships/requests");
+      set({ followRequests: res.data });
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to load follow requests");
+    } finally {
+      set({ isUsersLoading: false });
+    }
+  },
+
+  sendFollowRequest: async (userId) => {
+    try {
+      const res = await axiosInstance.post(`/relationships/${userId}`);
+      set((state) => ({
+        searchResults: state.searchResults.map((user) =>
+          user._id === userId ? { ...user, relationshipStatus: res.data.status } : user
+        ),
+      }));
+      toast.success("Follow request sent");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to send follow request");
+    }
+  },
+
+  respondToFollowRequest: async (relationshipId, status) => {
+    try {
+      await axiosInstance.patch(`/relationships/${relationshipId}`, { status });
+      set((state) => ({
+        followRequests: state.followRequests.filter((request) => request._id !== relationshipId),
+      }));
+      if (status === "accepted") await get().getMyChatPartners();
+      toast.success(status === "accepted" ? "Follow request accepted" : "Follow request rejected");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update follow request");
     }
   },
 
@@ -172,7 +212,7 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
     const { authUser } = useAuthStore.getState();
 
-    if (!socket) {
+    if (!socket || !authUser) {
       console.error("Socket not available for message subscription");
       return;
     }
@@ -296,14 +336,12 @@ export const useChatStore = create((set, get) => ({
     });
 
     socket.on("messageDeletedForMe", (messageId) => {
-      const currentMessages = get().messages;
       set((state) => ({
         messages: state.messages.filter((msg) => msg._id !== messageId),
       }));
     });
 
     socket.on("messageDeletedForEveryone", (messageId) => {
-      const currentMessages = get().messages;
       set((state) => ({
         messages: state.messages.filter((msg) => msg._id !== messageId),
       }));
@@ -350,7 +388,7 @@ export const useChatStore = create((set, get) => ({
 
   deleteMessage: async (messageId, deleteForEveryone = false) => {
     try {
-      const res = await axiosInstance.delete(`/messages/delete/${messageId}`, {
+      await axiosInstance.delete(`/messages/delete/${messageId}`, {
         data: { deleteForEveryone }
       });
       
@@ -370,6 +408,8 @@ export const useChatStore = create((set, get) => ({
 
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
+    if (!socket) return;
+
     socket.off("newMessage");
     socket.off("messageDeleted");
     socket.off("messageDeletedForMe");
@@ -421,7 +461,7 @@ export const useChatStore = create((set, get) => ({
       set({ messages: [] });
       toast.success("Chat cleared successfully");
     } catch (error) {
-      toast.error(error.response?.data?.error || "Failed to clear chat");
+      toast.error(error.response?.data?.message || error.response?.data?.error || "Failed to clear chat");
     }
   },
 }));

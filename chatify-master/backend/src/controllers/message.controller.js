@@ -2,11 +2,34 @@ import cloudinary from "../lib/cloudinary.js";
 import { getReceiverSocketId, io } from "../lib/socket.js";
 import Message from "../models/Message.js";
 import User from "../models/User.js";
+import mongoose from "mongoose";
+import Relationship from "../models/Relationship.js";
+
+const hasAcceptedRelationship = async (userId, otherUserId) => {
+  if (!otherUserId || userId.toString() === otherUserId.toString()) return false;
+
+  return Relationship.exists({
+    $or: [
+      { followerId: userId, followingId: otherUserId, status: "accepted" },
+      { followerId: otherUserId, followingId: userId, status: "accepted" },
+    ],
+  });
+};
 
 export const getAllContacts = async (req, res) => {
   try {
     const loggedInUserId = req.user._id;
-    const filteredUsers = await User.find({ _id: { $ne: loggedInUserId } }).select("-password");
+    const relationships = await Relationship.find({
+      $or: [{ followerId: loggedInUserId }, { followingId: loggedInUserId }],
+      status: "accepted",
+    }).select("followerId followingId");
+    const contactIds = relationships.map((relationship) =>
+      relationship.followerId.toString() === loggedInUserId.toString()
+        ? relationship.followingId
+        : relationship.followerId
+    );
+
+    const filteredUsers = await User.find({ _id: { $in: contactIds } }).select("-password");
 
     res.status(200).json(filteredUsers);
   } catch (error) {
@@ -19,6 +42,10 @@ export const getMessagesByUserId = async (req, res) => {
   try {
     const myId = req.user._id;
     const { id: userToChatId } = req.params;
+
+    if (!(await hasAcceptedRelationship(myId, userToChatId))) {
+      return res.status(403).json({ message: "Follow request must be accepted before accessing this conversation." });
+    }
 
     const messages = await Message.find({
       $or: [
@@ -50,6 +77,10 @@ export const sendMessage = async (req, res) => {
     const { text, image, video } = req.body;
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
+
+    if (!(await hasAcceptedRelationship(senderId, receiverId))) {
+      return res.status(403).json({ message: "Follow request must be accepted before sending messages." });
+    }
 
     if (!text && !image && !video) {
       return res.status(400).json({ message: "Text, image, or video is required." });
@@ -116,20 +147,15 @@ export const getChatPartners = async (req, res) => {
   try {
     const loggedInUserId = req.user._id;
 
-    // find all the messages where the logged-in user is either sender or receiver
-    const messages = await Message.find({
-      $or: [{ senderId: loggedInUserId }, { receiverId: loggedInUserId }],
-    });
-
-    const chatPartnerIds = [
-      ...new Set(
-        messages.map((msg) =>
-          msg.senderId.toString() === loggedInUserId.toString()
-            ? msg.receiverId.toString()
-            : msg.senderId.toString()
-        )
-      ),
-    ];
+    const relationships = await Relationship.find({
+      $or: [{ followerId: loggedInUserId }, { followingId: loggedInUserId }],
+      status: "accepted",
+    }).select("followerId followingId");
+    const chatPartnerIds = relationships.map((relationship) =>
+      relationship.followerId.toString() === loggedInUserId.toString()
+        ? relationship.followingId
+        : relationship.followerId
+    );
 
     const chatPartners = await User.find({ _id: { $in: chatPartnerIds } }).select("-password");
 
@@ -146,74 +172,57 @@ export const deleteMessage = async (req, res) => {
     const userId = req.user._id;
     const { deleteForEveryone } = req.body;
 
+    if (!mongoose.isValidObjectId(messageId)) {
+      return res.status(400).json({ error: "Invalid message id" });
+    }
+
     const message = await Message.findById(messageId);
     if (!message) {
       return res.status(404).json({ error: "Message not found" });
     }
 
-    // Check if user is authorized (sender or receiver)
     const isSender = message.senderId.toString() === userId.toString();
     const isReceiver = message.receiverId.toString() === userId.toString();
 
     if (!isSender && !isReceiver) {
       return res.status(403).json({ error: "Unauthorized to delete this message" });
     }
+    if (!(await hasAcceptedRelationship(message.senderId, message.receiverId))) {
+      return res.status(403).json({ error: "Follow request must be accepted for this conversation" });
+    }
 
     if (deleteForEveryone) {
-      // Only sender can delete for everyone
       if (!isSender) {
         return res.status(403).json({ error: "Only sender can delete for everyone" });
       }
 
-      // Check if message is within 24 hours (WhatsApp time limit)
-      const messageTime = new Date(message.createdAt);
-      const currentTime = new Date();
-      const hoursDiff = (currentTime - messageTime) / (1000 * 60 * 60);
-
+      const hoursDiff = (new Date() - new Date(message.createdAt)) / (1000 * 60 * 60);
       if (hoursDiff > 24) {
         return res.status(400).json({ error: "Cannot delete messages older than 24 hours" });
       }
 
-      // Mark as deleted for everyone
       message.deletedForEveryone = true;
       await message.save();
 
-      // Emit real-time deletion event to both sender and receiver
       const receiverSocketId = getReceiverSocketId(message.receiverId.toString());
       const senderSocketId = getReceiverSocketId(message.senderId.toString());
-      
-      console.log("Sending delete for everyone event to receiver socket:", receiverSocketId);
-      console.log("Sending delete for everyone event to sender socket:", senderSocketId);
+      if (receiverSocketId) io.to(receiverSocketId).emit("messageDeletedForEveryone", messageId);
+      if (senderSocketId) io.to(senderSocketId).emit("messageDeletedForEveryone", messageId);
 
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit("messageDeletedForEveryone", messageId);
-      }
-      if (senderSocketId) {
-        io.to(senderSocketId).emit("messageDeletedForEveryone", messageId);
-      }
-
-      res.status(200).json({ message: "Message deleted for everyone" });
-    } else {
-      // Delete for me only
-      if (!message.deletedFor.includes(userId)) {
-        message.deletedFor.push(userId);
-        await message.save();
-      }
-
-      // Emit deletion event to current user only
-      const userSocketId = getReceiverSocketId(userId.toString());
-      
-      console.log("Sending delete for me event to user socket:", userSocketId);
-
-      if (userSocketId) {
-        io.to(userSocketId).emit("messageDeletedForMe", messageId);
-      }
-
-      res.status(200).json({ message: "Message deleted for you" });
+      return res.status(200).json({ message: "Message deleted for everyone" });
     }
+
+    if (!message.deletedFor.includes(userId)) {
+      message.deletedFor.push(userId);
+      await message.save();
+    }
+
+    const userSocketId = getReceiverSocketId(userId.toString());
+    if (userSocketId) io.to(userSocketId).emit("messageDeletedForMe", messageId);
+    return res.status(200).json({ message: "Message deleted for you" });
   } catch (error) {
     console.log("Error in deleteMessage controller: ", error.message);
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 };
 
@@ -221,6 +230,10 @@ export const markMessagesAsRead = async (req, res) => {
   try {
     const { id: senderId } = req.params;
     const userId = req.user._id;
+
+    if (!(await hasAcceptedRelationship(userId, senderId))) {
+      return res.status(403).json({ message: "You are not authorized to access this conversation." });
+    }
 
     // Mark all unread messages from sender to current user as read
     await Message.updateMany(
@@ -255,13 +268,23 @@ export const clearChat = async (req, res) => {
     const { id: userToChatId } = req.params;
     const userId = req.user._id;
 
+    if (!mongoose.isValidObjectId(userToChatId)) {
+      return res.status(400).json({ error: "Invalid chat user id" });
+    }
+
+    if (!(await hasAcceptedRelationship(userId, userToChatId))) {
+      return res.status(403).json({ message: "You are not authorized to access this conversation." });
+    }
+
     // Delete all messages between current user and the specified user
-    await Message.deleteMany({
+    const result = await Message.deleteMany({
       $or: [
         { senderId: userId, receiverId: userToChatId },
         { senderId: userToChatId, receiverId: userId },
       ],
     });
+
+    console.log(`Cleared ${result.deletedCount} messages between ${userId} and ${userToChatId}`);
 
     // Emit chat cleared event to both users
     const userSocketId = getReceiverSocketId(userId.toString());

@@ -26,6 +26,17 @@ function ActiveTabSwitch() {
       >
         Contacts
       </button>
+
+      <button
+        onClick={() => setActiveTab("requests")}
+        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+          activeTab === "requests"
+            ? "bg-[#00a884] text-white"
+            : "text-[#8696a0] hover:bg-[#2a3942] hover:text-[#e9edef]"
+        }`}
+      >
+        Requests
+      </button>
     </div>
   );
 }

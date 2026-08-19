@@ -23,25 +23,26 @@ io.use(socketAuthMiddleware);
 
 // we will use this function to check if the user is online or not
 export function getReceiverSocketId(userId) {
-  // Ensure consistent string comparison
-  const userIdStr = userId?.toString();
-  return userSocketMap[userIdStr];
+  const socketIds = userSocketMap.get(userId?.toString());
+  return socketIds?.values().next().value;
 }
 
 // this is for storing online users
-const userSocketMap = {}; // {userId:socketId}
+const userSocketMap = new Map(); // {userId:Set<socketId>}
 
 io.on("connection", (socket) => {
   console.log("A user connected", socket.user.fullName);
 
   // Ensure userId is stored as string for consistent comparison
   const userId = socket.userId.toString();
-  userSocketMap[userId] = socket.id;
+  const socketIds = userSocketMap.get(userId) || new Set();
+  socketIds.add(socket.id);
+  userSocketMap.set(userId, socketIds);
 
-  console.log("User socket map updated:", Object.keys(userSocketMap));
+  console.log("User socket map updated:", [...userSocketMap.keys()]);
 
   // io.emit() is used to send events to all connected clients
-  io.emit("getOnlineUsers", Object.keys(userSocketMap));
+  io.emit("getOnlineUsers", [...userSocketMap.keys()]);
 
   // Handle socket errors
   socket.on("error", (error) => {
@@ -51,9 +52,15 @@ io.on("connection", (socket) => {
   // with socket.on we listen for events from clients
   socket.on("disconnect", () => {
     console.log("A user disconnected", socket.user.fullName);
-    delete userSocketMap[userId];
-    console.log("User socket map after disconnect:", Object.keys(userSocketMap));
-    io.emit("getOnlineUsers", Object.keys(userSocketMap));
+    const activeSocketIds = userSocketMap.get(userId);
+    activeSocketIds?.delete(socket.id);
+
+    if (!activeSocketIds?.size) {
+      userSocketMap.delete(userId);
+    }
+
+    console.log("User socket map after disconnect:", [...userSocketMap.keys()]);
+    io.emit("getOnlineUsers", [...userSocketMap.keys()]);
   });
 });
 
