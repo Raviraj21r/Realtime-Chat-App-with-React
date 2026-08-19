@@ -1,11 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
 import ChatHeader from "./ChatHeader";
 import NoChatHistoryPlaceholder from "./NoChatHistoryPlaceholder";
 import MessageInput from "./MessageInput";
 import MessagesLoadingSkeleton from "./MessagesLoadingSkeleton";
-import { Trash2, Check, CheckCheck } from "lucide-react";
+import { Trash2, Check, CheckCheck, Ban } from "lucide-react";
 
 function ChatContainer() {
   const {
@@ -15,10 +15,11 @@ function ChatContainer() {
     isMessagesLoading,
     subscribeToMessages,
     unsubscribeFromMessages,
-    deleteMessage, // ⚠️ स्टोर से deleteMessage फंक्शन ले लिया
+    deleteMessage, // स्टोर से deleteMessage फंक्शन ले लिया
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
+  const [deleteMenuOpen, setDeleteMenuOpen] = useState(null);
 
   useEffect(() => {
     getMessagesByUserId(selectedUser._id);
@@ -34,8 +35,26 @@ function ChatContainer() {
     }
   }, [messages]);
 
+  const handleDeleteForMe = async (messageId) => {
+    await deleteMessage(messageId, false);
+    setDeleteMenuOpen(null);
+  };
+
+  const handleDeleteForEveryone = async (messageId) => {
+    await deleteMessage(messageId, true);
+    setDeleteMenuOpen(null);
+  };
+
+  const canDeleteForEveryone = (msg) => {
+    if (msg.senderId !== authUser._id) return false;
+    const messageTime = new Date(msg.createdAt);
+    const currentTime = new Date();
+    const hoursDiff = (currentTime - messageTime) / (1000 * 60 * 60);
+    return hoursDiff <= 24;
+  };
+
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden bg-[#0b141a]">
+    <div className="h-[100dvh] flex flex-col overflow-hidden bg-[#0b141a]" onClick={() => setDeleteMenuOpen(null)}>
       <ChatHeader />
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2 sm:px-4 py-2">
         {messages.length > 0 && !isMessagesLoading ? (
@@ -89,15 +108,41 @@ function ChatContainer() {
                       </>
                     )}
 
-                    {/* Delete button for own messages */}
-                    {msg.senderId === authUser._id && !msg.isOptimistic && (
+                    {/* Delete menu trigger */}
+                    {!msg.isOptimistic && (
                       <button
-                        onClick={() => deleteMessage(msg._id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteMenuOpen(deleteMenuOpen === msg._id ? null : msg._id);
+                        }}
                         className="text-[#8696a0] hover:text-[#e9edef] p-1 transition-colors opacity-0 group-hover:opacity-100"
                         title="Delete message"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
+                    )}
+
+                    {/* Delete menu dropdown */}
+                    {deleteMenuOpen === msg._id && (
+                      <div
+                        className="absolute bottom-full right-0 mb-2 bg-[#233138] rounded-lg shadow-xl overflow-hidden min-w-[140px] z-50"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={() => handleDeleteForMe(msg._id)}
+                          className="w-full px-4 py-3 text-left text-[#e9edef] hover:bg-[#182229] text-sm transition-colors"
+                        >
+                          Delete for me
+                        </button>
+                        {msg.senderId === authUser._id && canDeleteForEveryone(msg) && (
+                          <button
+                            onClick={() => handleDeleteForEveryone(msg._id)}
+                            className="w-full px-4 py-3 text-left text-[#e9edef] hover:bg-[#182229] text-sm transition-colors border-t border-[#2a3942]"
+                          >
+                            Delete for everyone
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>

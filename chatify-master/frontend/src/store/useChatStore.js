@@ -180,8 +180,11 @@ export const useChatStore = create((set, get) => ({
     // Remove existing listeners to prevent duplicates
     socket.off("newMessage");
     socket.off("messageDeleted");
+    socket.off("messageDeletedForMe");
+    socket.off("messageDeletedForEveryone");
     socket.off("messagesRead");
     socket.off("messageDelivered");
+    socket.off("chatCleared");
 
     console.log("Subscribing to messages for user:", selectedUser._id);
 
@@ -292,6 +295,28 @@ export const useChatStore = create((set, get) => ({
       }, 300);
     });
 
+    socket.on("messageDeletedForMe", (messageId) => {
+      const currentMessages = get().messages;
+      set((state) => ({
+        messages: state.messages.filter((msg) => msg._id !== messageId),
+      }));
+    });
+
+    socket.on("messageDeletedForEveryone", (messageId) => {
+      const currentMessages = get().messages;
+      set((state) => ({
+        messages: state.messages.filter((msg) => msg._id !== messageId),
+      }));
+    });
+
+    socket.on("chatCleared", ({ userId }) => {
+      const { selectedUser } = get();
+      // If the cleared chat is the current chat, clear messages
+      if (selectedUser && selectedUser._id === userId) {
+        set({ messages: [] });
+      }
+    });
+
     socket.on("messagesRead", ({ senderId, receiverId }) => {
       const { authUser } = useAuthStore.getState();
       const currentMessages = get().messages;
@@ -323,25 +348,21 @@ export const useChatStore = create((set, get) => ({
     });
   },
 
-  deleteMessage: async (messageId) => {
+  deleteMessage: async (messageId, deleteForEveryone = false) => {
     try {
-      // Trigger animation immediately for instant feedback
-      set((state) => ({
-        messages: state.messages.map((msg) =>
-          msg._id === messageId ? { ...msg, isDeleting: true } : msg
-        ),
-      }));
-
-      await axiosInstance.delete(`/messages/delete/${messageId}`);
+      const res = await axiosInstance.delete(`/messages/delete/${messageId}`, {
+        data: { deleteForEveryone }
+      });
       
-      // Remove after animation for local deletions (socket won't handle this for local user)
-      setTimeout(() => {
+      // Handle delete for me (local removal)
+      if (!deleteForEveryone) {
         set((state) => ({
           messages: state.messages.filter((msg) => msg._id !== messageId),
         }));
-      }, 300);
-      
-      toast.success("Message deleted successfully");
+        toast.success("Message deleted for you");
+      } else {
+        toast.success("Message deleted for everyone");
+      }
     } catch (error) {
       toast.error(error.response?.data?.error || "Failed to delete message");
     }
@@ -351,8 +372,11 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
     socket.off("newMessage");
     socket.off("messageDeleted");
+    socket.off("messageDeletedForMe");
+    socket.off("messageDeletedForEveryone");
     socket.off("messagesRead");
     socket.off("messageDelivered");
+    socket.off("chatCleared");
   },
 
   markMessagesAsRead: async (senderId) => {
@@ -388,6 +412,16 @@ export const useChatStore = create((set, get) => ({
       set({ myStatus: res.data });
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to fetch your status");
+    }
+  },
+
+  clearChat: async (userId) => {
+    try {
+      await axiosInstance.delete(`/messages/clear/${userId}`);
+      set({ messages: [] });
+      toast.success("Chat cleared successfully");
+    } catch (error) {
+      toast.error(error.response?.data?.error || "Failed to clear chat");
     }
   },
 }));

@@ -1,12 +1,15 @@
-import { ArrowLeft, XIcon } from "lucide-react";
+import { ArrowLeft, XIcon, MoreVertical } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuthStore } from "../store/useAuthStore";
+import toast from "react-hot-toast";
 
 function ChatHeader() {
-  const { selectedUser, setSelectedUser } = useChatStore();
+  const { selectedUser, setSelectedUser, messages, clearChat } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const isOnline = onlineUsers.includes(selectedUser._id);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   useEffect(() => {
     const handleEscKey = (event) => {
@@ -18,6 +21,22 @@ function ChatHeader() {
     // cleanup function
     return () => window.removeEventListener("keydown", handleEscKey);
   }, [setSelectedUser]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleClearChat = () => {
+    clearChat(selectedUser._id);
+    setMenuOpen(false);
+  };
 
   return (
     <div
@@ -44,9 +63,40 @@ function ChatHeader() {
         </div>
       </div>
 
-      <button onClick={() => setSelectedUser(null)} className="hidden md:block">
-        <XIcon className="w-5 h-5 text-[#aebac1] hover:text-[#e9edef] transition-colors cursor-pointer" />
-      </button>
+      <div className="flex items-center gap-2">
+        {/* Menu button */}
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="p-2 text-[#aebac1] hover:text-[#e9edef] transition-colors"
+          >
+            <MoreVertical className="w-5 h-5" />
+          </button>
+
+          {/* Dropdown menu */}
+          {menuOpen && (
+            <div className="absolute right-0 top-full mt-2 bg-[#233138] rounded-lg shadow-xl overflow-hidden min-w-[180px] z-50">
+              <button
+                onClick={handleClearChat}
+                className="w-full px-4 py-3 text-left text-[#e9edef] hover:bg-[#182229] text-sm transition-colors"
+              >
+                Clear chat
+              </button>
+              <button
+                onClick={() => setSelectedUser(null)}
+                className="w-full px-4 py-3 text-left text-[#e9edef] hover:bg-[#182229] text-sm transition-colors border-t border-[#2a3942]"
+              >
+                Close chat
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop close button */}
+        <button onClick={() => setSelectedUser(null)} className="hidden md:block">
+          <XIcon className="w-5 h-5 text-[#aebac1] hover:text-[#e9edef] transition-colors cursor-pointer" />
+        </button>
+      </div>
     </div>
   );
 }

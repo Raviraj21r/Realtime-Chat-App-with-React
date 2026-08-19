@@ -27,7 +27,18 @@ export const getMessagesByUserId = async (req, res) => {
       ],
     });
 
-    res.status(200).json(messages);
+    // Filter out messages deleted for the current user or deleted for everyone
+    const filteredMessages = messages.filter(msg => {
+      // If deleted for everyone, don't show to anyone
+      if (msg.deletedForEveryone) return false;
+      
+      // If deleted for current user, don't show
+      if (msg.deletedFor && msg.deletedFor.includes(myId)) return false;
+      
+      return true;
+    });
+
+    res.status(200).json(filteredMessages);
   } catch (error) {
     console.log("Error in getMessages controller: ", error.message);
     res.status(500).json({ error: "Internal server error" });
@@ -133,34 +144,73 @@ export const deleteMessage = async (req, res) => {
   try {
     const { id: messageId } = req.params;
     const userId = req.user._id;
+    const { deleteForEveryone } = req.body;
 
     const message = await Message.findById(messageId);
     if (!message) {
       return res.status(404).json({ error: "Message not found" });
     }
 
-    // चेक करें कि मैसेज भेजने वाला वही यूजर है या नहीं
-    if (message.senderId.toString() !== userId.toString()) {
+    // Check if user is authorized (sender or receiver)
+    const isSender = message.senderId.toString() === userId.toString();
+    const isReceiver = message.receiverId.toString() === userId.toString();
+
+    if (!isSender && !isReceiver) {
       return res.status(403).json({ error: "Unauthorized to delete this message" });
     }
 
-    await Message.findByIdAndDelete(messageId);
+    if (deleteForEveryone) {
+      // Only sender can delete for everyone
+      if (!isSender) {
+        return res.status(403).json({ error: "Only sender can delete for everyone" });
+      }
 
-    // Emit real-time deletion event to both sender and receiver using consistent string IDs
-    const receiverSocketId = getReceiverSocketId(message.receiverId.toString());
-    const senderSocketId = getReceiverSocketId(message.senderId.toString());
-    
-    console.log("Sending deletion event to receiver socket:", receiverSocketId);
-    console.log("Sending deletion event to sender socket:", senderSocketId);
+      // Check if message is within 24 hours (WhatsApp time limit)
+      const messageTime = new Date(message.createdAt);
+      const currentTime = new Date();
+      const hoursDiff = (currentTime - messageTime) / (1000 * 60 * 60);
 
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("messageDeleted", messageId);
+      if (hoursDiff > 24) {
+        return res.status(400).json({ error: "Cannot delete messages older than 24 hours" });
+      }
+
+      // Mark as deleted for everyone
+      message.deletedForEveryone = true;
+      await message.save();
+
+      // Emit real-time deletion event to both sender and receiver
+      const receiverSocketId = getReceiverSocketId(message.receiverId.toString());
+      const senderSocketId = getReceiverSocketId(message.senderId.toString());
+      
+      console.log("Sending delete for everyone event to receiver socket:", receiverSocketId);
+      console.log("Sending delete for everyone event to sender socket:", senderSocketId);
+
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("messageDeletedForEveryone", messageId);
+      }
+      if (senderSocketId) {
+        io.to(senderSocketId).emit("messageDeletedForEveryone", messageId);
+      }
+
+      res.status(200).json({ message: "Message deleted for everyone" });
+    } else {
+      // Delete for me only
+      if (!message.deletedFor.includes(userId)) {
+        message.deletedFor.push(userId);
+        await message.save();
+      }
+
+      // Emit deletion event to current user only
+      const userSocketId = getReceiverSocketId(userId.toString());
+      
+      console.log("Sending delete for me event to user socket:", userSocketId);
+
+      if (userSocketId) {
+        io.to(userSocketId).emit("messageDeletedForMe", messageId);
+      }
+
+      res.status(200).json({ message: "Message deleted for you" });
     }
-    if (senderSocketId) {
-      io.to(senderSocketId).emit("messageDeleted", messageId);
-    }
-
-    res.status(200).json({ message: "Message deleted successfully" });
   } catch (error) {
     console.log("Error in deleteMessage controller: ", error.message);
     res.status(500).json({ error: "Internal server error" });
@@ -196,6 +246,37 @@ export const markMessagesAsRead = async (req, res) => {
     res.status(200).json({ message: "Messages marked as read" });
   } catch (error) {
     console.log("Error in markMessagesAsRead controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const clearChat = async (req, res) => {
+  try {
+    const { id: userToChatId } = req.params;
+    const userId = req.user._id;
+
+    // Delete all messages between current user and the specified user
+    await Message.deleteMany({
+      $or: [
+        { senderId: userId, receiverId: userToChatId },
+        { senderId: userToChatId, receiverId: userId },
+      ],
+    });
+
+    // Emit chat cleared event to both users
+    const userSocketId = getReceiverSocketId(userId.toString());
+    const otherUserSocketId = getReceiverSocketId(userToChatId.toString());
+    
+    if (userSocketId) {
+      io.to(userSocketId).emit("chatCleared", { userId: userToChatId.toString() });
+    }
+    if (otherUserSocketId) {
+      io.to(otherUserSocketId).emit("chatCleared", { userId: userId.toString() });
+    }
+
+    res.status(200).json({ message: "Chat cleared successfully" });
+  } catch (error) {
+    console.log("Error in clearChat controller: ", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
