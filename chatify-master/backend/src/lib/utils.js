@@ -14,12 +14,9 @@ export const generateToken = (userId, res) => {
   res.cookie("jwt", token, {
     maxAge: 7 * 24 * 60 * 60 * 1000, // MS
     httpOnly: true, // prevent XSS attacks: cross-site scripting
-    sameSite: ENV.NODE_ENV === "production" ? "none" : "lax",
-    secure: ENV.NODE_ENV === "production",
+    sameSite: "none", // Force 'none' for cross-origin deployment (Vercel + Render)
+    secure: true, // Required when sameSite is 'none'
   });
 
   return token;
 };
-
-// http://localhost
-// https://dsmakmk.com
