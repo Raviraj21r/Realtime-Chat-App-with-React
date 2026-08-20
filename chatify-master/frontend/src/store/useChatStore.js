@@ -52,31 +52,21 @@ export const useChatStore = create((set, get) => ({
     set({ isUsersLoading: true });
     try {
       const res = await axiosInstance.get("/relationships/requests");
-      set({ followRequests: res.data });
+      const requests = Array.isArray(res.data) ? res.data : [];
+      set({ followRequests: requests });
+      return requests;
     } catch (error) {
+      set({ followRequests: [] });
       toast.error(error.response?.data?.message || "Failed to load follow requests");
+      return [];
     } finally {
       set({ isUsersLoading: false });
     }
   },
 
-  sendFollowRequest: async (userId) => {
-    try {
-      const res = await axiosInstance.post(`/relationships/${userId}`);
-      set((state) => ({
-        searchResults: state.searchResults.map((user) =>
-          user._id === userId ? { ...user, relationshipStatus: res.data.status } : user
-        ),
-      }));
-      toast.success("Follow request sent");
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to send follow request");
-    }
-  },
-
   respondToFollowRequest: async (relationshipId, status) => {
     try {
-      await axiosInstance.patch(`/relationships/${relationshipId}`, { status });
+      await axiosInstance.put(`/relationships/accept/${relationshipId}`, { status });
       set((state) => ({
         followRequests: state.followRequests.filter((request) => request._id !== relationshipId),
       }));
@@ -170,8 +160,8 @@ export const useChatStore = create((set, get) => ({
 
           if (sameTemp || sameRealId || sameContent) {
             return {
-              ...realMessage,
               ...msg,
+              ...realMessage,
               _id: realMessage._id || msg._id,
               isDelivered: true,
               isRead: false,
@@ -199,9 +189,11 @@ export const useChatStore = create((set, get) => ({
 
         return { messages: nextMessages };
       });
+      return true;
     } catch (error) {
       set((state) => ({ messages: state.messages.filter((msg) => msg._id !== tempId) }));
       toast.error(error.response?.data?.message || "Something went wrong");
+      return false;
     }
   },
 
@@ -461,7 +453,92 @@ export const useChatStore = create((set, get) => ({
       set({ messages: [] });
       toast.success("Chat cleared successfully");
     } catch (error) {
-      toast.error(error.response?.data?.message || error.response?.data?.error || "Failed to clear chat");
+      toast.error(error.response?.data?.error || "Failed to clear chat");
+    }
+  },
+
+  sendFollowRequest: async (userId) => {
+    try {
+      const res = await axiosInstance.post(`/relationships/${userId}`);
+      const message = res.data.message || "Follow request sent!";
+      toast.success(message);
+      return res.data;
+    } catch (error) {
+      console.error("Follow request error:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Failed to send follow request";
+      toast.error(errorMessage);
+      throw error;
+    }
+  },
+
+  acceptFollowRequest: async (relationshipId) => {
+    try {
+      const res = await axiosInstance.put(`/relationships/accept/${relationshipId}`, { status: "accepted" });
+      toast.success("Follow request accepted!");
+      return res.data;
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to accept follow request");
+      throw error;
+    }
+  },
+
+  rejectFollowRequest: async (relationshipId) => {
+    try {
+      const res = await axiosInstance.put(`/relationships/accept/${relationshipId}`, { status: "rejected" });
+      toast.success("Follow request rejected");
+      return res.data;
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to reject follow request");
+      throw error;
+    }
+  },
+
+  followBack: async (relationshipId) => {
+    try {
+      const res = await axiosInstance.put(`/relationships/follow-back/${relationshipId}`);
+      set((state) => ({
+        followRequests: state.followRequests.filter((request) => request._id !== relationshipId),
+      }));
+      toast.success(res.data.message || "Following each other now");
+      return res.data;
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to follow back");
+      throw error;
+    }
+  },
+
+  followBackByUser: async (userId) => {
+    const res = await axiosInstance.put(`/relationships/follow-back-user/${userId}`);
+    toast.success(res.data.message || "Following each other now");
+    return res.data;
+  },
+
+  getIncomingRequests: async () => {
+    return get().getFollowRequests();
+  },
+
+  getRelationshipStatus: async (userId) => {
+    try {
+      const res = await axiosInstance.get(`/relationships/status/${userId}`);
+      console.log(`Relationship status response for ${userId}:`, res.data);
+      return res.data;
+    } catch (error) {
+      console.error("Error fetching relationship status:", error);
+      return { status: "none", relationship: null };
+    }
+  },
+
+  getBulkRelationshipStatus: async (userIds) => {
+    try {
+      const res = await axiosInstance.post("/relationships/bulk-status", { userIds });
+      console.log("Bulk relationship status response:", res.data);
+      return res.data;
+    } catch (error) {
+      console.error("Error fetching bulk relationship status:", error);
+      // Return default 'none' status for all users
+      const statusMap = {};
+      userIds.forEach(id => statusMap[id] = 'none');
+      return statusMap;
     }
   },
 }));

@@ -10,6 +10,8 @@ export const useAuthStore = create((set, get) => ({
   isLoggingIn: false,
   socket: null,
   onlineUsers: [],
+  notifications: [],
+  unreadCount: 0,
 
   checkAuth: async () => {
     try {
@@ -100,6 +102,16 @@ export const useAuthStore = create((set, get) => ({
       set({ onlineUsers: userIds });
     });
 
+    // Listen for new notifications
+    socket.on("notification:new", (notification) => {
+      console.log("New notification received:", notification);
+      set((state) => ({
+        notifications: [notification, ...state.notifications],
+        unreadCount: state.unreadCount + 1,
+      }));
+      toast.success("New notification!");
+    });
+
     // Handle connection events
     socket.on("connect", () => {
       console.log("Socket connected successfully to:", BASE_URL);
@@ -121,5 +133,41 @@ export const useAuthStore = create((set, get) => ({
     socket.removeAllListeners();
     socket.disconnect();
     set({ socket: null, onlineUsers: [] });
+  },
+
+  getNotifications: async () => {
+    try {
+      const res = await axiosInstance.get("/notifications");
+      set({ notifications: res.data });
+      const unreadCount = res.data.filter((n) => !n.isRead).length;
+      set({ unreadCount });
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      toast.error("Failed to fetch notifications");
+    }
+  },
+
+  markNotificationsAsRead: async () => {
+    try {
+      await axiosInstance.put("/notifications/mark-read");
+      set({ unreadCount: 0 });
+      set((state) => ({
+        notifications: state.notifications.map((n) => ({ ...n, isRead: true })),
+      }));
+    } catch (error) {
+      console.error("Error marking notifications as read:", error);
+    }
+  },
+
+  deleteNotification: async (notificationId) => {
+    try {
+      await axiosInstance.delete(`/notifications/${notificationId}`);
+      set((state) => ({
+        notifications: state.notifications.filter((n) => n._id !== notificationId),
+      }));
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+      toast.error("Failed to delete notification");
+    }
   },
 }));

@@ -2,12 +2,12 @@ import mongoose from "mongoose";
 
 const relationshipSchema = new mongoose.Schema(
   {
-    followerId: {
+    requester: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-    followingId: {
+    receiver: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -22,7 +22,7 @@ const relationshipSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-relationshipSchema.index({ followerId: 1, followingId: 1 }, { unique: true });
+relationshipSchema.index({ requester: 1, receiver: 1 }, { unique: true });
 
 const Relationship = mongoose.model("Relationship", relationshipSchema);
 

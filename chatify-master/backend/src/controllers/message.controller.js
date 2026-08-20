@@ -4,14 +4,15 @@ import Message from "../models/Message.js";
 import User from "../models/User.js";
 import mongoose from "mongoose";
 import Relationship from "../models/Relationship.js";
+import { createNotification } from "./notification.controller.js";
 
 const hasAcceptedRelationship = async (userId, otherUserId) => {
   if (!otherUserId || userId.toString() === otherUserId.toString()) return false;
 
   return Relationship.exists({
     $or: [
-      { followerId: userId, followingId: otherUserId, status: "accepted" },
-      { followerId: otherUserId, followingId: userId, status: "accepted" },
+      { requester: userId, receiver: otherUserId, status: "accepted" },
+      { requester: otherUserId, receiver: userId, status: "accepted" },
     ],
   });
 };
@@ -19,15 +20,34 @@ const hasAcceptedRelationship = async (userId, otherUserId) => {
 export const getAllContacts = async (req, res) => {
   try {
     const loggedInUserId = req.user._id;
+    
+    // Check for both new and old field names for backward compatibility
     const relationships = await Relationship.find({
-      $or: [{ followerId: loggedInUserId }, { followingId: loggedInUserId }],
-      status: "accepted",
-    }).select("followerId followingId");
-    const contactIds = relationships.map((relationship) =>
-      relationship.followerId.toString() === loggedInUserId.toString()
-        ? relationship.followingId
-        : relationship.followerId
-    );
+      $or: [
+        { requester: loggedInUserId, status: "accepted" },
+        { receiver: loggedInUserId, status: "accepted" },
+        { followerId: loggedInUserId, status: "accepted" },
+        { followingId: loggedInUserId, status: "accepted" }
+      ]
+    }).select("requester receiver followerId followingId");
+    
+    const contactIds = relationships.map((relationship) => {
+      // Handle new field names
+      if (relationship.requester && relationship.receiver) {
+        return relationship.requester.toString() === loggedInUserId.toString()
+          ? relationship.receiver
+          : relationship.requester;
+      }
+      // Handle old field names
+      if (relationship.followerId && relationship.followingId) {
+        return relationship.followerId.toString() === loggedInUserId.toString()
+          ? relationship.followingId
+          : relationship.followerId;
+      }
+      return null;
+    }).filter(id => id !== null);
+
+    console.log("Contact IDs found:", contactIds);
 
     const filteredUsers = await User.find({ _id: { $in: contactIds } }).select("-password");
 
@@ -93,8 +113,8 @@ export const sendMessage = async (req, res) => {
       return res.status(404).json({ message: "Receiver not found." });
     }
 
-    let imageUrl;
-    let videoUrl;
+    let imageUrl = null;
+    let videoUrl = null;
 
     if (image) {
       const uploadResponse = await cloudinary.uploader.upload(image, {
@@ -114,12 +134,20 @@ export const sendMessage = async (req, res) => {
       senderId,
       receiverId,
       text,
-      image: imageUrl,
-      video: videoUrl,
+      image: imageUrl || null,
+      video: videoUrl || null,
       isDelivered: true,
     });
 
     await newMessage.save();
+
+    // Create notification for new message (non-blocking)
+    try {
+      await createNotification(receiverId, senderId, "new_message", newMessage._id);
+    } catch (notifError) {
+      console.error("Error creating notification:", notifError);
+      // Don't fail the message send if notification fails
+    }
 
     // Emit to receiver using consistent string IDs
     const receiverSocketId = getReceiverSocketId(receiverId.toString());
@@ -147,15 +175,33 @@ export const getChatPartners = async (req, res) => {
   try {
     const loggedInUserId = req.user._id;
 
+    // Check for both new and old field names for backward compatibility
     const relationships = await Relationship.find({
-      $or: [{ followerId: loggedInUserId }, { followingId: loggedInUserId }],
-      status: "accepted",
-    }).select("followerId followingId");
-    const chatPartnerIds = relationships.map((relationship) =>
-      relationship.followerId.toString() === loggedInUserId.toString()
-        ? relationship.followingId
-        : relationship.followerId
-    );
+      $or: [
+        { requester: loggedInUserId, status: "accepted" },
+        { receiver: loggedInUserId, status: "accepted" },
+        { followerId: loggedInUserId, status: "accepted" },
+        { followingId: loggedInUserId, status: "accepted" }
+      ]
+    }).select("requester receiver followerId followingId");
+    
+    const chatPartnerIds = relationships.map((relationship) => {
+      // Handle new field names
+      if (relationship.requester && relationship.receiver) {
+        return relationship.requester.toString() === loggedInUserId.toString()
+          ? relationship.receiver
+          : relationship.requester;
+      }
+      // Handle old field names
+      if (relationship.followerId && relationship.followingId) {
+        return relationship.followerId.toString() === loggedInUserId.toString()
+          ? relationship.followingId
+          : relationship.followerId;
+      }
+      return null;
+    }).filter(id => id !== null);
+
+    console.log("Chat partner IDs found:", chatPartnerIds);
 
     const chatPartners = await User.find({ _id: { $in: chatPartnerIds } }).select("-password");
 

@@ -5,10 +5,10 @@ import ProfileHeader from "../components/ProfileHeader";
 import ActiveTabSwitch from "../components/ActiveTabSwitch";
 import ChatsList from "../components/ChatsList";
 import ContactList from "../components/ContactList";
+import RequestsList from "../components/RequestsList";
 import ChatContainer from "../components/ChatContainer";
 import NoConversationPlaceholder from "../components/NoConversationPlaceholder";
 import StatusBar from "../components/StatusBar";
-import RequestsList from "../components/RequestsList";
 
 function ChatPage() {
   const { activeTab, selectedUser } = useChatStore();
@@ -24,7 +24,7 @@ function ChatPage() {
             <StatusBar />
 
             <div className="flex-1 overflow-y-auto p-0 space-y-0">
-              {activeTab === "chats" ? <ChatsList /> : activeTab === "contacts" ? <ContactList /> : <RequestsList />}
+              {activeTab === "chats" ? <ChatsList /> : activeTab === "requests" ? <RequestsList /> : <ContactList />}
             </div>
           </div>
         )}
@@ -45,7 +45,7 @@ function ChatPage() {
             <StatusBar />
 
             <div className="flex-1 overflow-y-auto p-0 space-y-0">
-              {activeTab === "chats" ? <ChatsList /> : activeTab === "contacts" ? <ContactList /> : <RequestsList />}
+              {activeTab === "chats" ? <ChatsList /> : activeTab === "requests" ? <RequestsList /> : <ContactList />}
             </div>
           </div>
 

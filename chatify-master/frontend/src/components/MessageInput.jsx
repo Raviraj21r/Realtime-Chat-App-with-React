@@ -16,18 +16,18 @@ function MessageInput() {
 
   const { sendMessage, isSoundEnabled } = useChatStore();
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!text.trim() && !mediaPreview) return;
     if (isSoundEnabled) playRandomKeyStrokeSound();
 
-    sendMessage({
+    const sent = await sendMessage({
       text: text.trim(),
       image: mediaType === "image" ? mediaPreview : null,
       video: mediaType === "video" ? mediaPreview : null,
     });
 
-    resetMedia();
+    if (sent) resetMedia();
   };
 
   const handleFileChange = (e) => {
@@ -60,17 +60,17 @@ function MessageInput() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleSendFromModal = () => {
+  const handleSendFromModal = async () => {
     if (!mediaPreview) return;
     if (isSoundEnabled) playRandomKeyStrokeSound();
 
-    sendMessage({
+    const sent = await sendMessage({
       text: mediaCaption.trim(),
       image: mediaType === "image" ? mediaPreview : null,
       video: mediaType === "video" ? mediaPreview : null,
     });
 
-    resetMedia();
+    if (sent) resetMedia();
   };
 
   const removeImage = () => {
